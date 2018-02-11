@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+sudo ifconfig en4 inet 192.168.240.254 netmask 255.255.255.0 router 0.0.0.0
+
+IP=$(ifconfig en0 | grep inet | awk '$1=="inet" {print $2}')
+echo "IP is $IP"
+xhost + $IP
+
+docker run -it --rm --network host -e DISPLAY=$IP:0 -v /tmp/.X11-unix:/tmp/.X11-unix louisleblin/spinnaker-examples:8 /bin/bash
