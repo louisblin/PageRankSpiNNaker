@@ -20,7 +20,7 @@ script:
 # Publish on DockerHub
 deploy:
   provider: script
-  script: ./scripts/docker_push
+  script: 'if [ "${TRAVIS_PYTHON_VERSION}" = "2.7" ]; then ./scripts/docker_push ; fi'
   on:
     branch: master
 
