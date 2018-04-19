@@ -1,0 +1,26 @@
+sudo: required
+
+language: python
+python:
+  - "2.6"
+  - "2.7"
+  - "3.6"
+
+services:
+- docker
+
+script:
+# Need to find the branch name containing the last commit
+# `git branch` has format '  <my branch>' so need to remove the 2 leading spaces:
+- branch=$(git branch --contains `git rev-parse HEAD` | tail -n 1)
+- docker build -t louisleblin/spinnaker-examples:8 --build-arg GIT_CHECKOUT_TO="${branch:2}" .
+
+# Publish on DockerHub
+deploy:
+  provider: script
+  script: ./scripts/docker_push
+  on:
+    branch: master
+
+notifications:
+  email: false
