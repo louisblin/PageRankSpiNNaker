@@ -6,4 +6,11 @@ IP=$(ifconfig en0 | grep inet | awk '$1=="inet" {print $2}')
 echo "IP is $IP"
 xhost + $IP
 
-docker run -t --rm --network host -e DISPLAY=$IP:0 -v /tmp/.X11-unix:/tmp/.X11-unix louisleblin/spinnaker-examples:8
+if [ "$1" == "-i" ]; then
+    echo "Running interactive..."
+    docker run -it --rm --network host -e DISPLAY=$IP:0 -v /tmp/.X11-unix:/tmp/.X11-unix louisleblin/spinnaker-examples:8 /bin/bash
+else
+    echo "Running container default command..."
+    docker run -t --rm --network host -e DISPLAY=$IP:0 -v /tmp/.X11-unix:/tmp/.X11-unix louisleblin/spinnaker-examples:8
+fi
+
