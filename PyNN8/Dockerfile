@@ -20,5 +20,5 @@ RUN pip install --trusted-host pypi.python.org -r requirements.txt
 ENV DEBIAN_FRONTEND noninteractive
 ENV DISPLAY :0
 
-# Run app.py when the container launches
-CMD ["python", "PyNN8Examples-4.0.0/examples/va_benchmark.py"]
+# Run test if not used interactively
+CMD ["python", "PyNN8Examples/examples/va_benchmark.py"]

@@ -2,25 +2,31 @@ sudo: required
 
 language: python
 python:
-  - "2.7"
-  - "3.6"
+  - 2.7
+  - 3.6
+dist: trusty
 
 services:
-- docker
+  - docker
+
+env:
+  - DOCKER_REPO=louisleblin/PyNN8
+  - DOCKER_USERNAME=louisleblin
+  # TODO: securely define DOCKER_PASSWORD on web interface
 
 install:
-- echo "Nothing to do"
+  - echo "Nothing to do"
 
 script:
-# Need to find the branch name containing the last commit
-# `git branch` has format '  <my branch>' so need to remove the 2 leading spaces:
-- branch=$(git branch --contains `git rev-parse HEAD` | tail -n 1)
-- docker build -t louisleblin/spinnaker-examples:8 --build-arg GIT_CHECKOUT_TO="${branch:2}" .
+  # Need to find the branch name containing the last commit
+  # `git branch` has format '  <my branch>' so need to remove the 2 leading spaces:
+  - branch=$(git branch --contains `git rev-parse HEAD` | tail -n 1)
+  - docker build -t "${DOCKER_REPO}" --build-arg GIT_CHECKOUT_TO="${branch:2}" PyNN8
 
 # Publish on DockerHub
 deploy:
   provider: script
-  script: 'if [ "${TRAVIS_PYTHON_VERSION}" = "2.7" ]; then ./scripts/docker_push ; fi'
+  script: 'if [ "${TRAVIS_PYTHON_VERSION}" = "2.7" ]; then ./PyNN8/scripts/docker_push; else echo "Nothing to do"; fi'
   on:
     branch: master
 
