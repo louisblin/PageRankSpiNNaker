@@ -1,9 +1,7 @@
 sudo: required
 
 language: python
-python:
-  - 2.7
-  - 3.6
+python: 2.7
 dist: trusty
 
 services:
@@ -27,7 +25,7 @@ script:
 # Publish on DockerHub
 deploy:
   provider: script
-  script: 'if [ "${TRAVIS_PYTHON_VERSION}" = "2.7" ]; then ./PyNN8/scripts/docker_push; else echo "Nothing to do"; fi'
+  script: ./PyNN8/scripts/docker_push
   on:
     branch: master
 
