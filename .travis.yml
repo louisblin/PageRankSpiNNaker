@@ -10,9 +10,10 @@ services:
   - docker
 
 env:
-  - DOCKER_REPO=louisleblin/PyNN8
-  - DOCKER_USERNAME=louisleblin
-  # TODO: securely define DOCKER_PASSWORD on web interface
+  global:
+    - DOCKER_REPO=louisleblin/PyNN8
+    - DOCKER_USERNAME=louisleblin
+    # TODO: securely define DOCKER_PASSWORD on web interface
 
 install:
   - echo "Nothing to do"
