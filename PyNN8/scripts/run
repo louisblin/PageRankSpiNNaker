@@ -8,9 +8,9 @@ xhost + $IP
 
 if [ "$1" == "-i" ]; then
     echo "Running interactive..."
-    docker run -it --rm --network host -e DISPLAY=$IP:0 -v /tmp/.X11-unix:/tmp/.X11-unix louisleblin/spinnaker-examples:8 /bin/bash
+    docker run -it --rm --network host -e DISPLAY=$IP:0 -v /tmp/.X11-unix:/tmp/.X11-unix louisleblin/pynn8 /bin/bash
 else
     echo "Running container default command..."
-    docker run -t --rm --network host -e DISPLAY=$IP:0 -v /tmp/.X11-unix:/tmp/.X11-unix louisleblin/spinnaker-examples:8
+    docker run -t --rm --network host -e DISPLAY=$IP:0 -v /tmp/.X11-unix:/tmp/.X11-unix louisleblin/pynn8
 fi
 
