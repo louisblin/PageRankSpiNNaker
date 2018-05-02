@@ -1,0 +1,84 @@
+#!/bin/bash
+
+
+function print_help {
+  echo "usage: $0 [-i] [-c] [-h] [DOCKER_IMAGE] [DOCKER_OPTIONS...]"
+  echo ""
+  echo "Run pre-defined SpiNNaker Docker images."
+  echo ""
+  echo "positional arguments:"
+  echo " DOCKER_IMAGE             the docker image to run"
+  echo " DOCKER_OPTIONS           options to call \`docker run\` with. Default is '--rm'"
+  echo ""
+  echo "optional arguments:"
+  echo " -h, --help               show this help message and exit"
+  echo " -i, --interactive        run container interactively in /bin/bash"
+  echo " -p, --no-pull            do not refresh docker image"
+  echo " -c, --network-conf-only  configure host machine network and exit"
+}
+
+#
+# Parse args
+#
+
+DO_PULL=YES
+POSITIONAL=()
+while [[ $# -gt 0 ]]
+do
+key="$1"
+
+case $key in
+    -h|--help)
+    HELP=YES
+    shift # past argument
+    ;;
+    -i|--interactive)
+    INTERACTIVE=YES
+    shift # past argument
+    ;;
+    -p|--no-pull)
+    DO_PULL=NO
+    shift # past argument
+    ;;
+    -c|--network-conf-only)
+    NETWORK_CONF_ONLY=YES
+    shift # past argument
+    ;;
+    *)    # unknown option
+    POSITIONAL+=("$1") # save it in an array for later
+    shift # past argument
+    ;;
+esac
+done
+
+# Show help if missing DOCKER_IMAGE
+[[ ${HELP} == YES ]] && print_help && exit
+
+#
+# Run
+#
+
+# Configure card network
+sudo ifconfig en4 inet 192.168.240.254 netmask 255.255.255.0 router 0.0.0.0
+[[ ${NETWORK_CONF_ONLY} == YES ]] && exit
+
+[[ ${#POSITIONAL[@]} -eq 0 ]] && print_help && exit 1
+
+DOCKER_IMAGE="${POSITIONAL[0]}"
+DOCKER_OPTIONS="${POSITIONAL[@]:1}"
+[[ -z ${DOCKER_OPTIONS} ]] && DOCKER_OPTIONS="--rm"
+
+# Run container
+IP=$(ifconfig en0 | grep inet | awk '$1=="inet" {print $2}')
+echo "IP is $IP"
+xhost + $IP
+
+[[ ${DO_PULL} == YES ]] && docker pull ${DOCKER_IMAGE}
+
+if [[ ${INTERACTIVE} == YES ]]; then
+    echo "Running interactive..."
+    docker run -it ${DOCKER_OPTIONS} --network host -e DISPLAY=${IP}:0 -v /tmp/.X11-unix:/tmp/.X11-unix ${DOCKER_IMAGE} /bin/bash
+else
+    echo "Running container default command..."
+    docker run -t  ${DOCKER_OPTIONS} --network host -e DISPLAY=${IP}:0 -v /tmp/.X11-unix:/tmp/.X11-unix ${DOCKER_IMAGE}
+fi

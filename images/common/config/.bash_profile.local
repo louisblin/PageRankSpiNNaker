@@ -1,0 +1,4 @@
+# ~/.bash_profile.local: loaded by .dotfiles's ~/.bash_profile
+
+# Set up SpiNNaker toolchain
+[[ -f ~/.spinnaker_env ]] &&  . ~/.spinnaker_env

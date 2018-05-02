@@ -9,23 +9,39 @@ services:
 
 env:
   global:
-    - DOCKER_REPO=louisleblin/pynn8
     - DOCKER_USERNAME=louisleblin
-    # TODO: securely define DOCKER_PASSWORD on web interface
+    # DOCKER_PASSWORD=<securely define on web interface>
+  matrix:
+    - DOCKER_IMAGE=pynn8            DOCKER_IMAGE_DEV=pynn8:dev
+    - DOCKER_IMAGE=toolchain-v2016  DOCKER_IMAGE_DEV=toolchain-v2016:dev
 
 install:
-  - echo "Nothing to do"
+  # Set build context: copy images/common into the docker image being built
+  - cp -r images/common/* images/${DOCKER_IMAGE}/
 
 script:
   # Need to find the branch name containing the last commit
   # `git branch` has format '  <my branch>' so need to remove the 2 leading spaces:
   - branch=$(git branch --contains `git rev-parse HEAD` | tail -n 1)
-  - docker build -t "${DOCKER_REPO}" --build-arg GIT_CHECKOUT_TO="${branch:2}" PyNN8
+  # Build docker prod image
+  - |
+    docker build \
+    --tag "${DOCKER_USERNAME}/${DOCKER_IMAGE}" \
+    --build-arg GIT_CHECKOUT_TO="${branch:2}" \
+    "images/${DOCKER_IMAGE}"
+  # Build docker dev image
+  - |
+    docker build \
+    --tag "${DOCKER_USERNAME}/${DOCKER_IMAGE_DEV}" \
+    --file images/${DOCKER_IMAGE}/Dockerfile-dev \
+    --build-arg GIT_CHECKOUT_TO="${branch:2}" \
+    --build-arg DOCKER_IMAGE="${DOCKER_IMAGE}" \
+    "images/${DOCKER_IMAGE}"
 
 # Publish on DockerHub
 deploy:
   provider: script
-  script: ./PyNN8/scripts/docker_push
+  script: ./scripts/docker_push
   on:
     branch: master
 

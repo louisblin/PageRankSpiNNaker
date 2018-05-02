@@ -1,0 +1,4 @@
+# ~/.zshrc.local: loaded by .dotfiles's ~/.zshrc
+
+# Set up SpiNNaker toolchain
+[[ -f ~/.spinnaker_env ]] &&  . ~/.spinnaker_env

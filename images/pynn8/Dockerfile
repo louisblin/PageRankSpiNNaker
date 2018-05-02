@@ -1,15 +1,17 @@
-# Use an official Python runtime as a parent image
 FROM ubuntu:14.04
 
 # Set the working directory to /app
 WORKDIR /app
 
 # Copy the current directory contents into the container at /app
-ADD . /app
-ADD .spynnaker.cfg /root/.spynnaker.cfg
+COPY . /app
+COPY config/* /root/
 
-# Install any needed packages specified in requirements.txt
+# Install system dependencies
+RUN locale-gen en_GB en_GB.UTF-8 && dpkg-reconfigure locales
 RUN apt-get update && apt-get upgrade -y
+
+# Install python dependencies
 RUN apt-get install -y build-essential python-dev python-setuptools python-tk x11-apps && easy_install pip
 # Will install with SSL warnings, to remove them for further downloads
 RUN pip install requests[security]

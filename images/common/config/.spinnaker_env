@@ -1,0 +1,7 @@
+# ~/.profile: executed by Bourne-compatible login shells.
+
+# Set up SpiNNaker toolchain
+export SPINN_DIRS=/app/spinnaker_tools
+export YBUG_PATH=/app/ybug/boot
+export PATH=$PATH:/app/arm-2013.05/bin:/app/ybug
+export PERL5LIB=$PERL5LIB:/app/ybug

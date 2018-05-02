@@ -1,3 +1,3 @@
-[submodule "PyNN8/PyNN8Examples"]
-	path = PyNN8/PyNN8Examples
-	url = git@github.com:SpiNNakerManchester/PyNN8Examples.git
+[submodule "pynn8/PyNN8Examples"]
+	path = images/pynn8/PyNN8Examples
+	url = https://github.com/SpiNNakerManchester/PyNN8Examples.git
