@@ -23,4 +23,4 @@ ENV DEBIAN_FRONTEND noninteractive
 ENV DISPLAY :0
 
 # To be ran interactively
-CMD ["/bin/bash"]
+CMD ["/usr/bin/env", "bash"]

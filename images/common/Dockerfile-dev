@@ -10,4 +10,4 @@ RUN git clone https://github.com/louisblin/dotfiles.git ~/.dotfiles
 RUN cd ~/.dotfiles && ./setup.sh -y
 
 # To be ran interactively
-CMD ["/bin/zsh"]
+CMD ["/usr/bin/env", "zsh"]

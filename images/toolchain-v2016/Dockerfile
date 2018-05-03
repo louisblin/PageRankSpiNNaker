@@ -31,4 +31,4 @@ RUN cd /app && ./scripts/make_spinnaker_gfe.sh ; cd -
 
 # To be ran interactively
 WORKDIR /app/w
-CMD ["/bin/bash"]
+CMD ["/usr/bin/env", "bash"]

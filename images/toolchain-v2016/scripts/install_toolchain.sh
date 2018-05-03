@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 SPINN_REPOS="
 SpiNNakerGraphFrontEnd
