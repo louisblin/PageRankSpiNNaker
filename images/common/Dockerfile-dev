@@ -9,4 +9,5 @@ RUN apt-get install -y zsh curl tree vim man git
 RUN git clone https://github.com/louisblin/dotfiles.git ~/.dotfiles
 RUN cd ~/.dotfiles && ./setup.sh -y
 
-WORKDIR /app/w
+# To be ran interactively
+CMD ["/bin/zsh"]

@@ -8,7 +8,7 @@ COPY . /app
 COPY config/* /root/
 
 # Install system dependencies
-RUN locale-gen en_GB en_GB.UTF-8 && dpkg-reconfigure locales
+RUN locale-gen en_US en_US.UTF-8 && dpkg-reconfigure locales
 RUN apt-get update && apt-get upgrade -y
 
 # Install python dependencies
@@ -22,5 +22,5 @@ RUN pip install --trusted-host pypi.python.org -r requirements.txt
 ENV DEBIAN_FRONTEND noninteractive
 ENV DISPLAY :0
 
-# Run test if not used interactively
-CMD ["python", "PyNN8Examples/examples/va_benchmark.py"]
+# To be ran interactively
+CMD ["/bin/bash"]

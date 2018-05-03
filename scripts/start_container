@@ -2,7 +2,7 @@
 
 
 function print_help {
-  echo "usage: $0 [-i] [-c] [-h] [DOCKER_IMAGE] [DOCKER_OPTIONS...]"
+  echo "usage: $0 [-h] [-c] [DOCKER_IMAGE] [DOCKER_OPTIONS...]"
   echo ""
   echo "Run pre-defined SpiNNaker Docker images."
   echo ""
@@ -12,7 +12,6 @@ function print_help {
   echo ""
   echo "optional arguments:"
   echo " -h, --help               show this help message and exit"
-  echo " -i, --interactive        run container interactively in /bin/bash"
   echo " -p, --no-pull            do not refresh docker image"
   echo " -c, --network-conf-only  configure host machine network and exit"
 }
@@ -30,10 +29,6 @@ key="$1"
 case $key in
     -h|--help)
     HELP=YES
-    shift # past argument
-    ;;
-    -i|--interactive)
-    INTERACTIVE=YES
     shift # past argument
     ;;
     -p|--no-pull)
@@ -75,10 +70,4 @@ xhost + $IP
 
 [[ ${DO_PULL} == YES ]] && docker pull ${DOCKER_IMAGE}
 
-if [[ ${INTERACTIVE} == YES ]]; then
-    echo "Running interactive..."
-    docker run -it ${DOCKER_OPTIONS} --network host -e DISPLAY=${IP}:0 -v /tmp/.X11-unix:/tmp/.X11-unix ${DOCKER_IMAGE} /bin/bash
-else
-    echo "Running container default command..."
-    docker run -t  ${DOCKER_OPTIONS} --network host -e DISPLAY=${IP}:0 -v /tmp/.X11-unix:/tmp/.X11-unix ${DOCKER_IMAGE}
-fi
+docker run -it ${DOCKER_OPTIONS} --network host -e DISPLAY=${IP}:0 -v /tmp/.X11-unix:/tmp/.X11-unix ${DOCKER_IMAGE}

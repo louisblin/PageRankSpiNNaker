@@ -12,7 +12,7 @@ COPY . /app
 COPY config/* /root/
 
 # Install system dependencies
-RUN locale-gen en_GB en_GB.UTF-8 && dpkg-reconfigure locales
+RUN locale-gen en_US en_US.UTF-8 && dpkg-reconfigure locales
 RUN apt-get update && apt-get upgrade -y
 
 # Spinnaker toolchain install
@@ -29,5 +29,6 @@ ENV PATH $PATH:/app/arm-2013.05/bin:/app/ybug
 # Make install
 RUN cd /app && ./scripts/make_spinnaker_gfe.sh ; cd -
 
+# To be ran interactively
 WORKDIR /app/w
-CMD ["python", "-m", "spinnaker_graph_front_end.examples.hello_world.hello_world"]
+CMD ["/bin/bash"]
