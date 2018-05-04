@@ -3,7 +3,7 @@ ARG DOCKER_IMAGE
 FROM louisleblin/$DOCKER_IMAGE
 
 # Additional apt-get dev packages
-RUN apt-get install -y zsh curl tree vim man git
+RUN apt-get install -y zsh curl tree vim man git tmux
 
 # Setting-up
 RUN git clone https://github.com/louisblin/dotfiles.git ~/.dotfiles
