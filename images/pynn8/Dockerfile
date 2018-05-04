@@ -1,11 +1,14 @@
+# Written for a build context as images/
 FROM ubuntu:14.04
 
-# Set the working directory to /app
+# Set cwd / env
 WORKDIR /app
+ENV DEBIAN_FRONTEND noninteractive
+ENV DISPLAY :0
 
 # Copy the current directory contents into the container at /app
-COPY . /app
-COPY config/* /root/
+COPY pynn8 /app
+COPY common/config/* pynn8/config/* /root/
 
 # Install system dependencies
 RUN locale-gen en_US en_US.UTF-8 && dpkg-reconfigure locales
@@ -17,10 +20,6 @@ RUN apt-get install -y build-essential python-dev python-setuptools python-tk x1
 RUN pip install requests[security]
 RUN pip install --upgrade setuptools pip
 RUN pip install --trusted-host pypi.python.org -r requirements.txt
-
-# Removes errors due to expected interaction
-ENV DEBIAN_FRONTEND noninteractive
-ENV DISPLAY :0
 
 # To be ran interactively
 CMD ["/usr/bin/env", "bash"]
