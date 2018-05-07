@@ -1,0 +1,6 @@
+# SpiNNaker
+application_generated_data_files
+reports
+*.aplx
+*.txt
+
