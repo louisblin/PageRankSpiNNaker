@@ -1,6 +1,6 @@
 # SpiNNaker
 application_generated_data_files
 reports
+build
 *.aplx
 *.txt
-

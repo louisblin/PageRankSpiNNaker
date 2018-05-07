@@ -15,7 +15,7 @@ environment for SpiNNaker Graph Front End Developer toolchain v2016.001
 
 These images are available under the two versions, accessible via a specific tag:
 
-- **prod** version, via _`<img>:latest`_ for the slim version of the image
+- **prod** version, via _`<img>`_ for the slim version of the image
 - **dev** version, via _`<img>:dev`_ which adds some development tools such as
 `vim` and loads a custom `zsh` / `oh-my-zsh` shell - see
 `images/common/Dockerfile-dev` for further details.

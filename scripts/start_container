@@ -2,7 +2,7 @@
 
 
 function print_help {
-  echo "usage: $0 [-h] [-p] [-c] [DOCKER_IMAGE] [DOCKER_OPTIONS...]"
+  echo "usage: $0 [-h] [-p] [-c] [-e CMD] [DOCKER_IMAGE] [DOCKER_OPTIONS...]"
   echo ""
   echo "Run pre-defined SpiNNaker Docker images."
   echo ""
@@ -14,6 +14,7 @@ function print_help {
   echo " -h, --help               show this help message and exit"
   echo " -p, --no-pull            do not refresh docker image"
   echo " -c, --network-conf-only  configure host machine network and exit"
+  echo " -e, --exec CMD           docker command to execute"
 }
 
 #
@@ -39,6 +40,11 @@ case $key in
     NETWORK_CONF_ONLY=YES
     shift # past argument
     ;;
+    -e|--exec)
+    CMD=$2
+    shift # past argument
+    shift # past value
+    ;;
     *)    # unknown option
     POSITIONAL+=("$1") # save it in an array for later
     shift # past argument
@@ -61,7 +67,7 @@ sudo ifconfig en4 inet 192.168.240.254 netmask 255.255.255.0 router 0.0.0.0
 
 DOCKER_IMAGE="${POSITIONAL[0]}"
 DOCKER_OPTIONS="${POSITIONAL[@]:1}"
-[[ -z ${DOCKER_OPTIONS} ]] && DOCKER_OPTIONS="--rm"
+[[ -z ${DOCKER_OPTIONS} ]] && DOCKER_OPTIONS=" --rm"
 
 # Run container
 IP=$(ifconfig en0 | grep inet | awk '$1=="inet" {print $2}')
@@ -70,4 +76,11 @@ xhost + $IP
 
 [[ ${DO_PULL} == YES ]] && docker pull ${DOCKER_IMAGE}
 
-docker run -it ${DOCKER_OPTIONS} --network host -e DISPLAY=${IP}:0 -v /tmp/.X11-unix:/tmp/.X11-unix ${DOCKER_IMAGE}
+DOCKER_OPTIONS+=" --network host -e DISPLAY=${IP}:0 -v /tmp/.X11-unix:/tmp/.X11-unix"
+
+# Run interactive
+if [[ -z ${CMD} ]]; then
+  docker run --interactive --tty ${DOCKER_OPTIONS} ${DOCKER_IMAGE}
+else
+  docker run ${DOCKER_OPTIONS} ${DOCKER_IMAGE} ${CMD}
+fi
