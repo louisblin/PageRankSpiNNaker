@@ -19,22 +19,17 @@ install:
   - echo "Nothing to do"
 
 script:
-  # Need to find the branch name containing the last commit
-  # `git branch` has format '  <my branch>' so need to remove the 2 leading spaces:
-  - branch=$(git branch --contains `git rev-parse HEAD` | tail -n 1 | cut -c3-)
   # Build docker prod image
   - |
     docker build \
     --tag "${DOCKER_USERNAME}/${DOCKER_IMAGE}" \
     --file "images/${DOCKER_IMAGE}/Dockerfile" \
-    --build-arg GIT_CHECKOUT_TO="${branch}" \
     images
   # Build docker dev image
   - |
     docker build \
     --tag "${DOCKER_USERNAME}/${DOCKER_IMAGE_DEV}" \
     --file images/common/Dockerfile-dev \
-    --build-arg GIT_CHECKOUT_TO="${branch}" \
     --build-arg DOCKER_IMAGE="${DOCKER_IMAGE}" \
     images
 

@@ -38,7 +38,7 @@ class Vertex(
     DATA_REGIONS = Enum(
         value="DATA_REGIONS",
         names=[('SYSTEM', 0),
-               ('TRANSMISSION', 1)
+               ('TRANSMISSION', 1),
                ('RECORDED_DATA', 2),
                ('BUFFERED_STATE', 3)])
 
