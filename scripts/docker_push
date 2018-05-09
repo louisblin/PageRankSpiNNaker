@@ -2,10 +2,10 @@
 
 echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
 
-IMAGE_PROD="${DOCKER_USERNAME}/${DOCKER_IMAGE}"
+IMAGE_PROD="${DOCKER_USERNAME}/${DOCKER_IMAGE}:${DOCKER_TAG_PROD}"
 echo "Pushing prod image '${IMAGE_PROD}'..."
 docker push "${IMAGE_PROD}"
 
-IMAGE_DEV="${DOCKER_USERNAME}/${DOCKER_IMAGE_DEV}"
+IMAGE_DEV="${DOCKER_USERNAME}/${DOCKER_IMAGE}:${DOCKER_TAG_DEV}"
 echo "Pushing dev image '${IMAGE_DEV}'..."
 docker push "${IMAGE_DEV}"

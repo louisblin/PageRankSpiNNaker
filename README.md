@@ -27,3 +27,7 @@ The toolchain v2016.001 w/ the directory of examples mounted can be started as f
 ```sh
 ./scripts/start_container louisleblin/toolchain-v2016:dev --volume $PWD/examples:/app/w
 ```
+
+##### developing
+
+Consider sourcing `./scripts/set_env` in your `.<shell>rc` to add the scripts to your `PATH`. 

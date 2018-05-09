@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+# Set up SpiNNaker toolchain
+export PATH=$PATH:/root/.local/bin
+[[ -f /app/spinnaker_tools/setup ]] &&  . /app/spinnaker_tools/setup

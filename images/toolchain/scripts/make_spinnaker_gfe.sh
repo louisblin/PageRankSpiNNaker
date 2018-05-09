@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
+# Set the compiler install directory
 cd spinnaker_tools
+sed -i "/GNUTOOLS=/c\GNUTOOLS=/app/gcc-arm-none-eabi" setup   # set GNUTOOLS
 source setup
 make clean
 make || exit $?

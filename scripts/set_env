@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+printf "Setting environment for FYP..."
+
+CURR_DIR="`( cd \"$(dirname \"$0\")\" && pwd )`"
+export PATH=$PATH:"$CURR_DIR"
+
+alias fyp-netconf="start_container -c"
+
+echo "done"

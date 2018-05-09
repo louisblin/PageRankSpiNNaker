@@ -6,7 +6,7 @@ WORKDIR /app
 ENV DEBIAN_FRONTEND noninteractive
 ENV DISPLAY :0
 
-# Copy the current directory contents into the container at /app
+# Install config files
 COPY pynn8 /app
 COPY common/config/* pynn8/config/* /root/
 
