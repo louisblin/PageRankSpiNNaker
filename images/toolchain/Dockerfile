@@ -16,8 +16,8 @@ RUN locale-gen en_US en_US.UTF-8 && dpkg-reconfigure locales
 RUN apt-get update && apt-get upgrade -y
 
 # Set SpiNNaker env
-ENV SPINN_DIRS /app/spinnaker_tools
-ENV PATH $PATH:/root/.local/bin:/app/gcc-arm-none-eabi/bin:/app/ybug:/app/spinnaker_tools/tools
+#ENV SPINN_DIRS /app/spinnaker_tools
+#ENV PATH $PATH:/root/.local/bin:/app/gcc-arm-none-eabi/bin:/app/ybug:/app/spinnaker_tools/tools
 
 # Spinnaker toolchain install
 RUN apt-get install -y python2.7 python-numpy python-scipy python-lxml python-pip python-tk x11-apps git wget

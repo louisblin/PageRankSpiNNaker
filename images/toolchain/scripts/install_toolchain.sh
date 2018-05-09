@@ -14,7 +14,7 @@ function clone_repository {
     sudo python setup.py develop --no-deps
   fi
 
-  cd ..
+  cd -
 }
 
 SPINN_COMMON_REPOS="
@@ -48,7 +48,7 @@ case $DOCKER_TAG in
         clone_repository "$rep" "4.0.0"
     done
 
-    clone_repository "SpiNNUtilities"  "4.0.0"
+    clone_repository "SpiNNUtils"      "4.0.0"
     clone_repository "spalloc"         "1.0.0"
     clone_repository "spinnaker_tools" "v3.1.1"
     sudo pip install --user rig appdirs "scipy>=0.16.0"
