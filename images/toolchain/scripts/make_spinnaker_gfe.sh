@@ -4,8 +4,7 @@ set -eu
 
 # Set the compiler install directory
 cd spinnaker_tools
-sed -i "/GNUTOOLS=/c\GNUTOOLS=/app/gcc-arm-none-eabi" setup   # set GNUTOOLS
-set +eu && source setup; set -eu
+set +eu && . ~/.spinnaker_env; set -eu   # source `setup' defined in .spinnaker_env
 make clean
 make
 cd ..

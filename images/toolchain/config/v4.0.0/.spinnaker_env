@@ -1,5 +1,49 @@
 #!/usr/bin/env bash
 
 # Set up SpiNNaker toolchain
-export PATH=$PATH:/root/.local/bin
-[[ -f /app/spinnaker_tools/setup ]] &&  . /app/spinnaker_tools/setup
+#-------------------------------------------------------------------------------
+
+export SPINN_DIRS=/app/spinnaker_tools
+
+#-------------------------------------------------------------------------------
+
+# SPINN_PATH is a path variable (elements separated by ":"). It's used
+# to find resources used while building and running applications. It
+# should always contain at least the "tools/boot" directory of $SPINN_DIRS
+
+export SPINN_PATH=$SPINN_DIRS/tools/boot
+
+#-------------------------------------------------------------------------------
+
+# Add the "tools" directory to the Unix PATH and to the Perl library
+# search path.
+
+export PATH=$SPINN_DIRS/tools:$PATH
+
+export PERL5LIB=$SPINN_DIRS/tools:$PERL5LIB
+
+#-------------------------------------------------------------------------------
+
+# Set up variables pointing to the GNU software development tools.
+# You may need to edit this section for your local environment
+
+export GNUTOOLS=/app/gcc-arm-none-eabi
+
+export GNUBIN=$GNUTOOLS/bin
+
+#-------------------------------------------------------------------------------
+
+# Set pip --user PATH
+
+export PIPLOCALBIN=/app/.local/bin
+
+#-------------------------------------------------------------------------------
+
+# Finally, add ARM and GNU software development tools to the PATH
+
+export PATH=$PIPLOCALBIN:$GNUBIN:$PATH
+
+#-------------------------------------------------------------------------------
+
+
+chmod u+x $SPINN_DIRS/tools/*

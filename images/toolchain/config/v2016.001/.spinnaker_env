@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 
 # Set up SpiNNaker toolchain
+#-------------------------------------------------------------------------------
+
 export SPINN_DIRS=/app/spinnaker_tools
+
 export YBUG_PATH=/app/ybug/boot
-export PATH=$PATH:/root/.local/bin:/app/gcc-arm-none-eabi/bin:/app/ybug
 export PERL5LIB=$PERL5LIB:/app/ybug
+
+export PATH=$PATH:/root/.local/bin:/app/gcc-arm-none-eabi/bin:/app/ybug
+
+[[ -f /app/spinnaker_tools/setup ]] && . /app/spinnaker_tools/setup
