@@ -1,3 +1,4 @@
+#define DEBUG
 
 //! imports
 #include "spin1_api.h"
@@ -336,10 +337,8 @@ void update(uint ticks, uint b) {
 
         /* compute new temperature */
         /* adjust for 16.16 fixed-point representation  */
-        int tmp1 = neighbours_temp[now][EAST] + neighbours_temp[now][WEST]
-                - 2 * my_temp;
-        int tmp2 = neighbours_temp[now][NORTH] + neighbours_temp[now][SOUTH]
-                - 2 * my_temp;
+        int tmp1 = neighbours_temp[now][EAST] + neighbours_temp[now][WEST] - 2 * my_temp;
+        int tmp2 = neighbours_temp[now][NORTH] + neighbours_temp[now][SOUTH] - 2 * my_temp;
 
         /* adjust for 16.16 fixed-point representation  */
         int tmp3 = (int) (((long long) cx_adj * (long long) tmp1) >> 16);
@@ -352,8 +351,7 @@ void update(uint ticks, uint b) {
         my_temp = (my_temp > 0) ? my_temp : 0;
 #endif
 
-        log_debug("sending my temp of %d via multicast with key %d\n",
-                  my_temp, my_key);
+        log_debug("sending my temp of %d via multicast with key %d\n", my_temp, my_key);
         /* send new data to neighbours */
         while (!spin1_send_mc_packet(my_key, my_temp, WITH_PAYLOAD)) {
             spin1_delay_us(1);
@@ -521,8 +519,7 @@ void c_main() {
     spin1_callback_on(TIMER_TICK, update, TIMER);
 
     // Set up callback listening to SDP messages
-    simulation_register_simulation_sdp_callback(
-        &simulation_ticks, &infinite_run, SDP);
+    simulation_register_simulation_sdp_callback(&simulation_ticks, &infinite_run, SDP);
 
 #ifdef DEBUG
 

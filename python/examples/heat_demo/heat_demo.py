@@ -1,21 +1,5 @@
 """
-Proof of concept implementation of an instance of the PageRank algorithmic problem.
-
-Sample PageRank graph:
-
-    A---------+
-    ^         |
-    |         |
-    |         |
-    v         v
-    C-------->B
-    ^         |
-    |         |
-    |         |
-    v         |
-    D<--------+
-
-    Based on: https://www.youtube.com/watch?v=P8Kt6Abq_rM&t=202s
+heat demo main entrance allows users to run the heat demo on the tool chain
 """
 
 from pacman.model.constraints.placer_constraints\
@@ -64,7 +48,7 @@ if front_end.is_allocated_machine():
 front_end.setup(
     graph_label="heat_demo_graph",
     model_binary_module=sys.modules[__name__],
-    database_socket_addresses={ SocketAddress("127.0.0.1", notify_port, database_listen_port) },
+    database_socket_addresses={SocketAddress("127.0.0.1", notify_port, database_listen_port)},
     n_chips_required=n_chips_required)
 machine = front_end.machine()
 
@@ -89,9 +73,10 @@ live_gatherer.add_constraint(PlacerChipAndCoreConstraint(0, 0, 1))
 # (for 16 cores on a chip - missing cores will have missing vertices)
 max_x_element_id = (machine.max_chip_x + 1) * 4
 max_y_element_id = (machine.max_chip_y + 1) * 4
-
-vertices = [[None] * max_y_element_id] * max_x_element_id
-
+vertices = [
+    [None for j in range(max_y_element_id)]
+    for i in range(max_x_element_id)
+]
 for x in range(0, max_x_element_id):
     for y in range(0, max_y_element_id):
 
@@ -101,29 +86,21 @@ for x in range(0, max_x_element_id):
         core_y = y % 4
         core_p = ((core_x * 4) + core_y) + 1
 
-        # Skip live_gatherer vertex
-        if chip_x == 0 and chip_y == 0 and core_p == 1:
-            continue
-
-        # Skip broken chips / cores
+        # Add an element if the chip and core exists
         chip = machine.get_chip_at(chip_x, chip_y)
-        if chip is None:
-            continue
-        core = chip.get_processor_with_id(core_p)
-        if core is None:
-            continue
-
-        # Add a vertex
-        if not core.is_monitor:
-            element = front_end.add_partitioned_vertex(
-                HeatDemoVertexPartitioned,
-                {
-                    'machine_time_step': machine_time_step,
-                    'time_scale_factor': time_scale_factor
-                },
-                label="Heat Element {}, {}".format(x, y))
-            vertices[x][y] = element
-            vertices[x][y].add_constraint(PlacerChipAndCoreConstraint(chip_x, chip_y, core_p))
+        if chip is not None:
+            core = chip.get_processor_with_id(core_p)
+            if (core is not None and not core.is_monitor and
+                    not (chip_x == 0 and chip_y == 0 and core_p == 1)):
+                element = front_end.add_partitioned_vertex(
+                    HeatDemoVertexPartitioned,
+                    {
+                        'machine_time_step': machine_time_step,
+                        'time_scale_factor': time_scale_factor
+                    },
+                    label="Heat Element {}, {}".format(x, y))
+                vertices[x][y] = element
+                vertices[x][y].add_constraint(PlacerChipAndCoreConstraint(chip_x, chip_y, core_p))
 
 # build edges
 receive_labels = list()
@@ -194,8 +171,7 @@ for x in range(0, max_x_element_id):
 
 # Set up the live connection for receiving heat elements
 live_heat_connection = LiveEventConnection(
-    live_gatherer_label, receive_labels=receive_labels, local_port=notify_port,
-    partitioned_vertices=True)
+    live_gatherer_label, receive_labels=receive_labels, local_port=notify_port, partitioned_vertices=True)
 condition = Condition()
 
 

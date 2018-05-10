@@ -7,28 +7,19 @@
 #include <debug.h>
 
 //! left shift for each point in the arrived element
-#define NORTH              3
-#define SOUTH              2
-#define EAST               1
-#define WEST               0
+#define DIRECTED           0
 
 //! the value expected when each neighbour's data has arrived
-#define NORTH_ARRIVED      (1 << NORTH)
-#define SOUTH_ARRIVED      (1 << SOUTH)
-#define EAST_ARRIVED       (1 << EAST)
-#define WEST_ARRIVED       (1 << WEST)
+#define DIRECTED_ARRIVED   (1 << DIRECTED)
 #define NONE_ARRIVED       0
 
 //! the value expected when a combination of neighbours data has arrived
-#define NS_ARRIVED         (NORTH_ARRIVED | SOUTH_ARRIVED)
-#define EW_ARRIVED         (EAST_ARRIVED | WEST_ARRIVED)
-#define ALL_ARRIVED        (NS_ARRIVED | EW_ARRIVED)
+#define NS_ARRIVED         DIRECTED_ARRIVED
+#define EW_ARRIVED         DIRECTED_ARRIVED
+#define ALL_ARRIVED        DIRECTED_ARRIVED
 
 //! values for when a certain edge isn't expected
-#define NORTH_INIT         (40 << 16)
-#define EAST_INIT          (10 << 16)
-#define SOUTH_INIT         (10 << 16)
-#define WEST_INIT          (40 << 16)
+#define DIRECTED_INIT      (40 << 16)
 
 //! how many keys to store before overwriting
 #define DEBUG_KEYS         500
@@ -36,22 +27,12 @@
 //! the visualiser has a bug with negative temperatures!
 #define POSITIVE_TEMP      TRUE
 
-//! constants to use in heat diffusion calculation
-#define PARAM_CX           0.03125
-#define PARAM_CY           0.03125
-
 /*! multicast routing keys to communicate with neighbours */
 uint my_key;
-uint north_key;
-uint south_key;
-uint east_key;
-uint west_key;
+uint directed_key;
 
 /*! multicast routing keys receivable for injecting temperatures */
-uint fake_temp_north_key;
-uint fake_temp_south_key;
-uint fake_temp_east_key;
-uint fake_temp_west_key;
+uint fake_temp_directed_key;
 
 /*! multicast routing keys receivable for commands*/
 uint command_pause_key;
@@ -67,11 +48,6 @@ int old_temp = 0;
 //! make sure to have room for two values from each neighbour
 //! given that the communication is asynchronous
 volatile int neighbours_temp[2][4];
-
-/*! coefficients to compute new temperature value */
-/*! adjust for 16.16 fixed-point representation  */
-int cx_adj = (int) (PARAM_CX * (1 << 16));
-int cy_adj = (int) (PARAM_CY * (1 << 16));
 
 /*! keep track of which neighbours have sent data */
 /*! cores in the border need special values! */
@@ -118,14 +94,8 @@ typedef enum transmission_region_elements {
 
 //! human readable definitions of each element in the neighbour region
 typedef enum neighbour_region_elements {
-    EAST_KEY,
-    NORTH_KEY,
-    WEST_KEY,
-    SOUTH_KEY,
-    EAST_FAKE_KEY,
-    NORTH_FAKE_KEY,
-    WEST_FAKE_KEY,
-    SOUTH_FAKE_KEY
+    DIRECTED_KEY,
+    DIRECTED_FAKE_KEY,
 } neighbour_region_elements;
 
 //! human readable definitions of each element in the command keys region
@@ -153,11 +123,11 @@ uint * dbg_s_time;
 #endif
 
 
-/****f* heat_demo.c/receive_data
+/****f* page_rank.c/receive_data
  *
  * SUMMARY
  *  This function is used as a callback for packet received events.
- * receives data from 4 (NSEW) neighbours and updates the checklist
+ * receives data from directed neighbours and updates the checklist
  *
  * SYNOPSIS
  *  void receive_data (uint key, uint payload)
@@ -179,58 +149,19 @@ void receive_data(uint key, uint payload) {
     }
 #endif
 
-    if (key == north_key) {
-        log_debug("received north neighbours temp\n");
-        if (arrived[now] & NORTH_ARRIVED) {
-            neighbours_temp[next][NORTH] = payload;
-            arrived[next] |= NORTH_ARRIVED;
+    if (key == directed_key) {
+        log_debug("received directed neighbours temp\n");
+        if (arrived[now] & DIRECTED_ARRIVED) {
+            neighbours_temp[next][DIRECTED] = payload;
+            arrived[next] |= DIRECTED_ARRIVED;
         } else {
-            neighbours_temp[now][NORTH] = payload;
-            arrived[now] |= NORTH_ARRIVED;
+            neighbours_temp[now][DIRECTED] = payload;
+            arrived[now] |= DIRECTED_ARRIVED;
         }
-    } else if (key == south_key) {
-        log_debug("received south neighbours temp\n");
-        if (arrived[now] & SOUTH_ARRIVED) {
-            neighbours_temp[next][SOUTH] = payload;
-            arrived[next] |= SOUTH_ARRIVED;
-        } else {
-            neighbours_temp[now][SOUTH] = payload;
-            arrived[now] |= SOUTH_ARRIVED;
-        }
-    } else if (key == east_key) {
-        log_debug("received east neighbours temp\n");
-        if (arrived[now] & EAST_ARRIVED) {
-            neighbours_temp[next][EAST] = payload;
-            arrived[next] |= EAST_ARRIVED;
-        } else {
-            neighbours_temp[now][EAST] = payload;
-            arrived[now] |= EAST_ARRIVED;
-        }
-    } else if (key == west_key) {
-        log_debug("received west neighbours temp\n");
-        if (arrived[now] & WEST_ARRIVED) {
-            neighbours_temp[next][WEST] = payload;
-            arrived[next] |= WEST_ARRIVED;
-        } else {
-            neighbours_temp[now][WEST] = payload;
-            arrived[now] |= WEST_ARRIVED;
-        }
-    } else if (key == fake_temp_north_key) {
-        log_debug("received fake north neighbours temp\n");
-        neighbours_temp[now][NORTH] = payload;
-        neighbours_temp[next][NORTH] = payload;
-    } else if (key == fake_temp_east_key) {
-        log_debug("received fake east neighbours temp\n");
-        neighbours_temp[now][EAST] = payload;
-        neighbours_temp[next][EAST] = payload;
-    } else if (key == fake_temp_south_key) {
-        log_debug("received fake south neighbours temp\n");
-        neighbours_temp[now][SOUTH] = payload;
-        neighbours_temp[next][SOUTH] = payload;
-    } else if (key == fake_temp_west_key) {
-        log_debug("received fake west neighbours temp\n");
-        neighbours_temp[now][WEST] = payload;
-        neighbours_temp[next][WEST] = payload;
+    } else if (key == fake_temp_directed_key) {
+        log_debug("received fake directed neighbours temp\n");
+        neighbours_temp[now][DIRECTED] = payload;
+        neighbours_temp[next][DIRECTED] = payload;
     } else if (key == command_stop_key) {
         log_debug("received stop command\n");
         spin1_exit(0);
@@ -247,7 +178,7 @@ void receive_data(uint key, uint payload) {
     }
 }
 
-/****f* heat_demo.c/send_first_value
+/****f* page_rank.c/send_first_value
  *
  * SUMMARY
  *
@@ -267,7 +198,7 @@ void send_first_value() {
     log_info("Sent initial temp \n");
 }
 
-/****f* heat_demo.c/update
+/****f* page_rank.c/update
  *
  * SUMMARY
  *
@@ -309,42 +240,14 @@ void update(uint ticks, uint b) {
         // if a core does not receive temperature from a neighbour
         // it uses it's own as an estimate for the neighbour's.
         if (arrived[now] != ALL_ARRIVED) {
-            if (!(arrived[now] & NORTH_ARRIVED)) {
-                log_debug("north temp has not arrived by time update "
-                          "has occurred\n");
-                neighbours_temp[now][NORTH] = my_temp;
-            }
-
-            if (!(arrived[now] & SOUTH_ARRIVED)) {
-                log_debug("south temp has not arrived by time update "
-                          "has occurred\n");
-                neighbours_temp[now][SOUTH] = my_temp;
-            }
-
-            if (!(arrived[now] & EAST_ARRIVED)) {
-                log_debug("east temp has not arrived by time update "
-                          "has occurred\n");
-                neighbours_temp[now][EAST] = my_temp;
-            }
-
-            if (!(arrived[now] & WEST_ARRIVED)) {
-                log_debug("west temp has not arrived by time update "
-                          "has occurred\n");
-                neighbours_temp[now][WEST] = my_temp;
+            if (!(arrived[now] & DIRECTED_ARRIVED)) {
+                log_debug("directed temp has not arrived by time update has occurred\n");
+                neighbours_temp[now][DIRECTED] = my_temp;
             }
         }
 
         /* compute new temperature */
-        /* adjust for 16.16 fixed-point representation  */
-        int tmp1 = neighbours_temp[now][EAST] + neighbours_temp[now][WEST]
-                - 2 * my_temp;
-        int tmp2 = neighbours_temp[now][NORTH] + neighbours_temp[now][SOUTH]
-                - 2 * my_temp;
-
-        /* adjust for 16.16 fixed-point representation  */
-        int tmp3 = (int) (((long long) cx_adj * (long long) tmp1) >> 16);
-        int tmp4 = (int) (((long long) cy_adj * (long long) tmp2) >> 16);
-        my_temp = my_temp + tmp3 + tmp4;
+        my_temp = neighbours_temp[now][DIRECTED];
 
 #ifdef POSITIVE_TEMP
 
@@ -352,8 +255,7 @@ void update(uint ticks, uint b) {
         my_temp = (my_temp > 0) ? my_temp : 0;
 #endif
 
-        log_debug("sending my temp of %d via multicast with key %d\n",
-                  my_temp, my_key);
+        log_debug("sending my temp of %d via multicast with key %d\n", my_temp, my_key);
         /* send new data to neighbours */
         while (!spin1_send_mc_packet(my_key, my_temp, WITH_PAYLOAD)) {
             spin1_delay_us(1);
@@ -389,65 +291,33 @@ static bool initialize(uint32_t *timer_period) {
     }
 
     // Get the timing details
-    address_t system_region = data_specification_get_region(
-        SYSTEM_REGION, address);
-    if (!simulation_read_timing_details(
-            system_region, APPLICATION_MAGIC_NUMBER, timer_period)) {
+    address_t system_region = data_specification_get_region(SYSTEM_REGION, address);
+    if (!simulation_read_timing_details(system_region, APPLICATION_MAGIC_NUMBER, timer_period)) {
         log_error("failed to read the system header");
         return false;
     }
 
     // initialise transmission keys
-    address_t transmission_region_address = data_specification_get_region(
-            TRANSMISSIONS, address);
+    address_t transmission_region_address = data_specification_get_region(TRANSMISSIONS, address);
     if (transmission_region_address[HAS_KEY] == 1) {
         my_key = transmission_region_address[MY_KEY];
         log_info("my key is %d\n", my_key);
     } else {
-        log_error(
-            "this heat element can't effect anything, deduced as an error,"
+        log_error("this page rank element can't effect anything, deduced as an error,"
             "please fix the application fabric and try again\n");
         return false;
     }
 
     // initialise neighbour keys
-    address_t neighbour_region_address = data_specification_get_region(
-        NEIGHBOUR_KEYS, address);
+    address_t neighbour_region_address = data_specification_get_region(NEIGHBOUR_KEYS, address);
 
-    // get east key
-    east_key = neighbour_region_address[EAST_KEY];
-    log_info("my east neighbours key is %d\n", east_key);
-    if (east_key == 0xFFFFFFFF) {
-        neighbours_temp[now][NORTH] = EAST_INIT;
-        neighbours_temp[next][NORTH] = EAST_INIT;
-        init_arrived |= EAST_ARRIVED;
-    }
-
-    // get north key
-    north_key = neighbour_region_address[NORTH_KEY];
-    log_info("my north neighbours key is %d\n", north_key);
-    if (north_key == 0xFFFFFFFF) {
-        neighbours_temp[now][NORTH] = NORTH_INIT;
-        neighbours_temp[next][NORTH] = NORTH_INIT;
-        init_arrived |= NORTH_ARRIVED;
-    }
-
-    // get west key
-    west_key = neighbour_region_address[WEST_KEY];
-    log_info("my west neighbours key is %d\n", west_key);
-    if (west_key == 0xFFFFFFFF) {
-        neighbours_temp[now][WEST] = WEST_INIT;
-        neighbours_temp[next][WEST] = WEST_INIT;
-        init_arrived |= WEST_ARRIVED;
-    }
-
-    // get south key
-    south_key = neighbour_region_address[SOUTH_KEY];
-    log_info("my south neighbours key is %d\n", south_key);
-    if (south_key == 0xFFFFFFFF) {
-        neighbours_temp[now][SOUTH] = SOUTH_INIT;
-        neighbours_temp[next][SOUTH] = SOUTH_INIT;
-        init_arrived |= SOUTH_ARRIVED;
+    // get directed key
+    directed_key = neighbour_region_address[DIRECTED_KEY];
+    log_info("my directed neighbours key is %d\n", directed_key);
+    if (directed_key == 0xFFFFFFFF) {
+        neighbours_temp[now][DIRECTED] = DIRECTED_INIT;
+        neighbours_temp[next][DIRECTED] = DIRECTED_INIT;
+        init_arrived |= DIRECTED_ARRIVED;
     }
 
     // prepare for first update
@@ -455,18 +325,11 @@ static bool initialize(uint32_t *timer_period) {
     arrived[next] = init_arrived;
 
     // locate fake injected temp keys
-    fake_temp_east_key = neighbour_region_address[EAST_FAKE_KEY];
-    log_info("my fake east temp key is %d\n", fake_temp_east_key);
-    fake_temp_north_key = neighbour_region_address[NORTH_FAKE_KEY];
-    log_info("my fake north temp key is %d\n", fake_temp_north_key);
-    fake_temp_west_key = neighbour_region_address[WEST_FAKE_KEY];
-    log_info("my fake west temp key is %d\n", fake_temp_west_key);
-    fake_temp_south_key = neighbour_region_address[SOUTH_FAKE_KEY];
-    log_info("my fake south temp key is %d\n", fake_temp_south_key);
+    fake_temp_directed_key = neighbour_region_address[DIRECTED_FAKE_KEY];
+    log_info("my fake directed temp key is %d\n", fake_temp_directed_key);
 
     // initialise command keys
-    address_t command_region_address = data_specification_get_region(
-            COMMAND_KEYS, address);
+    address_t command_region_address = data_specification_get_region(COMMAND_KEYS, address);
     command_stop_key = command_region_address[STOP_COMMAND_KEY];
     log_info("my stop command is %d\n", command_stop_key);
     command_pause_key = command_region_address[PAUSE_COMMAND_KEY];
@@ -475,20 +338,18 @@ static bool initialize(uint32_t *timer_period) {
     log_info("my resume command is %d\n", command_resume_key);
 
     // report if command keys are special values
-    if (command_pause_key == 0 && command_stop_key == 0
-            && command_resume_key == 0){
+    if (command_pause_key == 0 && command_stop_key == 0 && command_resume_key == 0){
         log_info("Currently running without commands set\n");
     }
 
     // read my temperature
-    address_t my_temp_region_address = data_specification_get_region(
-        TEMP_VALUE, address);
+    address_t my_temp_region_address = data_specification_get_region(TEMP_VALUE, address);
     my_temp = my_temp_region_address[INITIAL_TEMPERATURE];
     log_info("my initial temp is %d\n", my_temp);
     return true;
 }
 
-/****f* heat_demo.c/c_main
+/****f* page_rank.c/c_main
  *
  * SUMMARY
  *  This function is called at application start-up.
@@ -500,7 +361,7 @@ static bool initialize(uint32_t *timer_period) {
  * SOURCE
  */
 void c_main() {
-    log_info("starting heat_demo\n");
+    log_info("starting page_rank\n");
 
     // Load DTCM data
     uint32_t timer_period;
@@ -521,8 +382,7 @@ void c_main() {
     spin1_callback_on(TIMER_TICK, update, TIMER);
 
     // Set up callback listening to SDP messages
-    simulation_register_simulation_sdp_callback(
-        &simulation_ticks, &infinite_run, SDP);
+    simulation_register_simulation_sdp_callback(&simulation_ticks, &infinite_run, SDP);
 
 #ifdef DEBUG
 

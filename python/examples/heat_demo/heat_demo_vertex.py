@@ -7,28 +7,20 @@ from .heat_demo_edge import HeatDemoEdge
 from spinnaker_graph_front_end.utilities.conf import config
 
 # data spec imports
-from data_specification.data_specification_generator import \
-    DataSpecificationGenerator
+from data_specification.data_specification_generator import DataSpecificationGenerator
 
 # pacman imports
 from pacman.model.partitioned_graph.partitioned_vertex import PartitionedVertex
-from pacman.model.resources.cpu_cycles_per_tick_resource import \
-    CPUCyclesPerTickResource
+from pacman.model.resources.cpu_cycles_per_tick_resource import CPUCyclesPerTickResource
 from pacman.model.resources.dtcm_resource import DTCMResource
 from pacman.model.resources.resource_container import ResourceContainer
 from pacman.model.resources.sdram_resource import SDRAMResource
 
 # graph front end imports
-from spinn_front_end_common.interface.buffer_management.buffer_models.\
-    receives_buffers_to_host_basic_impl import \
-    ReceiveBuffersToHostBasicImpl
-from spinn_front_end_common.utility_models.live_packet_gather import \
-    LivePacketGather
-from spinn_front_end_common.utility_models.\
-    reverse_ip_tag_multi_cast_source import ReverseIpTagMultiCastSource
-from spinn_front_end_common.abstract_models\
-    .abstract_partitioned_data_specable_vertex \
-    import AbstractPartitionedDataSpecableVertex
+from spinn_front_end_common.interface.buffer_management.buffer_models.receives_buffers_to_host_basic_impl import ReceiveBuffersToHostBasicImpl
+from spinn_front_end_common.utility_models.live_packet_gather import LivePacketGather
+from spinn_front_end_common.utility_models.reverse_ip_tag_multi_cast_source import ReverseIpTagMultiCastSource
+from spinn_front_end_common.abstract_models.abstract_partitioned_data_specable_vertex import AbstractPartitionedDataSpecableVertex
 
 # front end common imports
 from spinn_front_end_common.utilities import constants
@@ -222,8 +214,7 @@ class HeatDemoVertexPartitioned(
 
         # get incoming edges
         incoming_edges = sub_graph.incoming_subedges_from_subvertex(self)
-        spec.comment("\n the keys for the neighbours in EAST, NORTH, WEST, "
-                     "SOUTH. order:\n\n")
+        spec.comment("\n the keys for the neighbours in EAST, NORTH, WEST, SOUTH. order:\n\n")
         direction_edges = list()
         fake_temp_edges = list()
         command_edge = None
@@ -242,9 +233,7 @@ class HeatDemoVertexPartitioned(
         for out_going_edge in out_going_edges:
             if isinstance(out_going_edge.post_subvertex, LivePacketGather):
                 if output_edge is not None:
-                    raise exceptions.ConfigurationException(
-                        "already found a outgoing edge."
-                        " Can't have more than one!")
+                    raise exceptions.ConfigurationException("already found a outgoing edge. Can't have more than one!")
                 output_edge = out_going_edge
 
         direction_edges = sorted(
@@ -259,8 +248,7 @@ class HeatDemoVertexPartitioned(
             for edge in direction_edges:
                 if edge.direction.value == current_direction:
                     partition = sub_graph.get_partition_of_subedge(edge)
-                    keys_and_masks = routing_info.\
-                        get_keys_and_masks_from_partition(partition)
+                    keys_and_masks = routing_info.get_keys_and_masks_from_partition(partition)
                     key = keys_and_masks[0].key
                     spec.write_value(data=key)
                     loaded_keys += 1
@@ -279,17 +267,14 @@ class HeatDemoVertexPartitioned(
 
         # write each key that this model should expect packets from in order of
         # EAST, NORTH, WEST, SOUTH for injected temperatures
-        fake_temp_edges = sorted(
-            fake_temp_edges, key=lambda subedge: subedge.direction.value,
-            reverse=False)
+        fake_temp_edges = sorted(fake_temp_edges, key=lambda subedge: subedge.direction.value,reverse=False)
         current_direction = 0
         for current_direction in range(4):
             written = False
             for edge in fake_temp_edges:
                 if edge.direction.value == current_direction:
                     partition = sub_graph.get_partition_of_subedge(edge)
-                    keys_and_masks = routing_info.\
-                        get_keys_and_masks_from_partition(partition)
+                    keys_and_masks = routing_info.get_keys_and_masks_from_partition(partition)
                     key = keys_and_masks[0].key
                     spec.write_value(data=key)
                     written = True
@@ -298,11 +283,12 @@ class HeatDemoVertexPartitioned(
 
         # write keys for commands
         spec.switch_write_focus(region=self.DATA_REGIONS.COMMAND_KEYS.value)
-        spec.comment(
-            "\n the command keys in order of STOP, PAUSE, RESUME:\n\n")
+        spec.comment("\n the command keys in order of STOP, PAUSE, RESUME:\n\n")
         partition = sub_graph.get_partition_of_subedge(command_edge)
-        commands_keys_and_masks = \
-            routing_info.get_keys_and_masks_from_partition(partition)
+        commands_keys_and_masks = routing_info.get_keys_and_masks_from_partition(partition)
+        print('routing_info = ', routing_info)
+        print('partition = ', partition)
+        print('commands_keys_and_masks = ', commands_keys_and_masks)
 
         # get just the keys
         keys = list()
@@ -319,7 +305,7 @@ class HeatDemoVertexPartitioned(
             for key in keys:
                 spec.write_value(data=key)
         else:
-            for _ in range(0, 3):
+            for _ in range(3):
                 spec.write_value(data_type=DataType.INT32, data=-1)
             logger.warn(
                 "Set up to not use commands. If commands are needed, "

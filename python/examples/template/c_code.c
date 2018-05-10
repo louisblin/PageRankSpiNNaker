@@ -132,8 +132,7 @@ void update(uint ticks, uint unused) {
 
     log_debug("on tick %d of %d", time, simulation_ticks);
 
-    // check that the run time hasn't already elapsed and thus needs to be
-    // killed
+    // check that the run time hasn't already elapsed and thus needs to be killed
     if ((infinite_run != TRUE) && (time >= simulation_ticks)) {
         log_info("Simulation complete.\n");
 
@@ -168,17 +167,14 @@ static bool initialize(uint32_t *timer_period) {
     }
 
     // Get the timing details
-    address_t system_region = data_specification_get_region(
-        SYSTEM_REGION, address);
-    if (!simulation_read_timing_details(
-            system_region, APPLICATION_NAME_HASH, timer_period)) {
+    address_t system_region = data_specification_get_region(SYSTEM_REGION, address);
+    if (!simulation_read_timing_details(system_region, APPLICATION_NAME_HASH, timer_period)) {
         log_error("failed to read the system header");
         return false;
     }
 
     // initialise transmission keys
-    address_t transmission_region_address = data_specification_get_region(
-            TRANSMISSIONS, address);
+    address_t transmission_region_address = data_specification_get_region(TRANSMISSIONS, address);
     if (transmission_region_address[HAS_KEY] == 1) {
         my_key = transmission_region_address[MY_KEY];
         log_info("my key is %d\n", my_key);
@@ -216,8 +212,7 @@ void c_main() {
     spin1_callback_on(TIMER_TICK, update, TIMER);
 
     // Set up callback listening to SDP messages
-    simulation_register_simulation_sdp_callback(
-        &simulation_ticks, &infinite_run, SDP);
+    simulation_register_simulation_sdp_callback(&simulation_ticks, &infinite_run, SDP);
 
     // start execution
     log_info("Starting\n");

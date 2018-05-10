@@ -109,9 +109,8 @@ class Vertex(
         # Create the data regions
         self._reserve_memory_regions(spec)
         self._write_basic_setup_info(spec, self.DATA_REGIONS.SYSTEM.value)
-        self.write_recording_data(
-            spec, ip_tags, [self._recording_size],
-            self._buffer_size_before_receive, self._time_between_requests)
+        self.write_recording_data(spec, ip_tags, [self._recording_size], self._buffer_size_before_receive,
+                                  self._time_between_requests)
 
         # Get the key, assuming all outgoing edges use the same key
         key = 0
@@ -120,8 +119,7 @@ class Vertex(
         if len(edge_partitions) > 0:
 
             # Assumes all outgoing edges use the same key
-            keys_and_masks = routing_info.get_keys_and_masks_from_partition(
-                edge_partitions[0])
+            keys_and_masks = routing_info.get_keys_and_masks_from_partition(edge_partitions[0])
             key = keys_and_masks[0].key
             has_key = 1
 
@@ -158,8 +156,7 @@ class Vertex(
         :return: The data read
         """
         data_pointer, is_missing_data = buffer_manager.get_data_for_vertex(
-            placement, self.DATA_REGIONS.RECORDED_DATA.value,
-            self.DATA_REGIONS.BUFFERED_STATE.value)
+            placement, self.DATA_REGIONS.RECORDED_DATA.value, self.DATA_REGIONS.BUFFERED_STATE.value)
         if is_missing_data:
             logger.warn("Some data was lost when recording")
         record_raw = data_pointer.read_all()

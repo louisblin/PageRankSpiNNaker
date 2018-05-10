@@ -1,3 +1,5 @@
+PYTHON_ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))..
+
 BUILD_DIRS = heat_demo hello_world page_rank
 
 all: $(BUILD_DIRS)
@@ -10,5 +12,6 @@ clean: $(BUILD_DIRS)
 FORCE:
 
 $(BUILD_DIRS): FORCE
-	(cd $@; "$(MAKE)") || exit $$?
-	python $@/$@.py
+	(cd $@; "$(MAKE)" clean all) || exit $$?
+	PYTHONPATH=${PYTHONPATH}:$(PYTHON_ROOT) python $@/$@.py
+	cd $@; "$(MAKE)" clean
