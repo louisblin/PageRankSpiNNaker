@@ -10,9 +10,9 @@ make
 if [ -d scamp ]; then  # DOCKER_TAG=v4.0.0
     cd scamp
     make clean install
-    cd -
+    cd ..
 fi
-cd -
+cd ..
 
 cd spinn_common
 make clean
