@@ -10,22 +10,24 @@ We build the following docker images to facilitate the development w/ sPyNNaker:
 
 - [**louisleblin/pynn8**](https://hub.docker.com/r/louisleblin/pynn8/):
 environment to run the PyNN 0.8 interface to sPyNNaker
-- [**louisleblin/toolchain-v2016**](https://hub.docker.com/r/louisleblin/toolchain-v2016/):
+- [**louisleblin/toolchain:v2016.001**](https://hub.docker.com/r/louisleblin/toolchain-v2016/):
 environment for SpiNNaker Graph Front End Developer toolchain v2016.001
+- [**louisleblin/toolchain:v4.0.0**](https://hub.docker.com/r/louisleblin/toolchain-v2016/):
+same, but v4.0.0
 
 These images are available under the two versions, accessible via a specific tag:
 
 - **prod** version, via _`<img>`_ for the slim version of the image
-- **dev** version, via _`<img>:dev`_ which adds some development tools such as
+- **dev** version, via _`<img>:[<tag>-]dev`_ which adds some development tools such as
 `vim` and loads a custom `zsh` / `oh-my-zsh` shell - see
 `images/common/Dockerfile-dev` for further details.
 
 ## Usage
 
-The toolchain v2016.001 w/ the directory of examples mounted can be started as follows:
+The toolchain v4.0.0 w/ the directory of examples mounted can be started as follows:
 
 ```sh
-./scripts/start_container louisleblin/toolchain-v2016:dev --volume $PWD/examples:/app/w
+./scripts/start_container louisleblin/toolchain:v4.0.0-dev --volume $PWD/examples:/app/w
 ```
 
 ##### developing
