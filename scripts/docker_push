@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -eu
+
 echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
 
 IMAGE_PROD="${DOCKER_USERNAME}/${DOCKER_IMAGE}:${DOCKER_TAG_PROD}"

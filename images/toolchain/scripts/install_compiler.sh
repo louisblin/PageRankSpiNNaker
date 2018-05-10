@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -eu
+
 COMPILER_DIR="gcc-arm-none-eabi"
 
 
