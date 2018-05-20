@@ -60,6 +60,7 @@ done
 #
 
 # Configure card network
+# NB: add /sbin/ifconfig to /etc/sudoers to avoid typing your password each time
 sudo ifconfig en4 inet 192.168.240.254 netmask 255.255.255.0 router 0.0.0.0
 [[ ${NETWORK_CONF_ONLY} == YES ]] && exit
 

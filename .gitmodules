@@ -1,3 +1,9 @@
 [submodule "pynn8/PyNN8Examples"]
 	path = images/pynn8/PyNN8Examples
 	url = https://github.com/SpiNNakerManchester/PyNN8Examples.git
+[submodule "python/sPyNNaker8NewModelTemplate"]
+	path = python/sPyNNaker8NewModelTemplate
+	url = https://github.com/louisblin/sPyNNaker8NewModelTemplate.git
+[submodule "python/sPyNNaker"]
+	path = python/sPyNNaker
+	url = https://github.com/louisblin/sPyNNaker.git
