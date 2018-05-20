@@ -1,0 +1,9 @@
+# make
+# tubotron &
+
+app_stop 16
+app_load page_rank_spin1.aplx all 1-16 16
+sleep 1
+app_sig all 16 sync0
+ps
+

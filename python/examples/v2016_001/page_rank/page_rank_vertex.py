@@ -65,7 +65,7 @@ class PageRankVertexPartitioned(PartitionedVertex, AbstractPartitionedDataSpecab
         self._constraints.add(constraint)
 
     def get_binary_file_name(self):
-        return "page_rank.aplx"
+        return "fyp_page_rank.aplx"
 
     def model_name(self):
         return "Page_Rank_Vertex"

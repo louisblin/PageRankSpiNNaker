@@ -8,8 +8,7 @@ from spinnaker_graph_front_end.examples.Conways.no_edges_examples.\
 front_end.setup()
 
 for count in range(0, 60):
-    front_end.add_machine_vertex_instance(
-        ConwayBasicCell("cell{}".format(count)))
+    front_end.add_machine_vertex_instance(ConwayBasicCell("cell{}".format(count)))
 
-front_end.run(1)
+front_end.run(10000)
 front_end.stop()

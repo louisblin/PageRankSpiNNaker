@@ -1,5 +1,3 @@
-
-//! imports
 #include "spin1_api.h"
 #include "common-typedefs.h"
 #include <data_specification.h>
@@ -16,8 +14,8 @@ static uint32_t current_payload;
 
 //! Conways specific data items
 uint32_t my_state = 0;
-int alive_states_recieved_this_tick = 0;
-int dead_states_recieved_this_tick = 0;
+int alive_states_received_this_tick = 0;
+int dead_states_received_this_tick = 0;
 
 //! recorded data items
 uint32_t size_written = 0;
@@ -43,12 +41,12 @@ typedef enum regions_e {
 } regions_e;
 
 //! values for the priority for each callback
-typedef enum callback_priorities{
+typedef enum callback_priorities {
     MC_PACKET = -1, SDP=1, TIMER = 2, DMA = 3
 } callback_priorities;
 
 //! values for the states
-typedef enum states_values{
+typedef enum states_values {
     ALIVE = 1, DEAD = 0
 } states_values;
 
@@ -57,8 +55,7 @@ typedef enum transmission_region_elements {
     HAS_KEY, MY_KEY
 } transmission_region_elements;
 
-//! human readable definitions of each element in the initial state
-//! region
+//! human readable definitions of each element in the initial state region
 typedef enum initial_state_region_elements {
     INITIAL_STATE
 } initial_state_region_elements;
@@ -80,11 +77,91 @@ typedef enum initial_state_region_elements {
  * SOURCE
  */
 void receive_data(uint key, uint payload) {
+    // log_info below causes crashes...
     //log_info("the key i've received is %d\n", key);
     //log_info("the payload i've received is %d\n", payload);
     // If there was space to add spike to incoming spike queue
     if (!circular_buffer_add(input_buffer, payload)) {
         log_info("Could not add state");
+    }
+}
+
+
+void do_safety_check() {
+    // do a safety check on number of states. Not like we can fix it if we've missed events
+    cpsr = spin1_int_disable();
+    int total = alive_states_received_this_tick + dead_states_received_this_tick;
+    if (total != 8) {
+         log_error("didn't receive the correct number of states");
+         log_error("only received %d states", total);
+    }
+    log_debug("only received %d alive states", alive_states_received_this_tick);
+    log_debug("only received %d dead states", dead_states_received_this_tick);
+    spin1_mode_restore(cpsr);
+}
+
+void read_input_buffer() {
+
+    cpsr = spin1_int_disable();
+    circular_buffer_print_buffer(input_buffer);
+
+    // pull payloads from input_buffer. Filter for alive and dead states
+    for (uint32_t counter = 0; counter < 8; counter ++){
+        bool success = circular_buffer_get_next(input_buffer, &current_payload);
+        if (success) {
+            if (current_payload == DEAD){
+                 dead_states_received_this_tick += 1;
+            } else if(current_payload == ALIVE){
+                 alive_states_received_this_tick += 1;
+            } else {
+                 log_error("Not recognised payload");
+            }
+        } else {
+            log_debug("couldn't read state from my neighbours.");
+        }
+    }
+
+    spin1_mode_restore(cpsr);
+}
+
+void record_state() {
+    //* record my state via sdram
+    address_t record_region = data_specification_get_region(RECORDED_DATA, address);
+    uint8_t* record_space_address = (uint8_t*) record_region;
+    record_space_address = record_space_address + 4 + size_written;
+    spin1_memcpy(record_space_address, &my_state, 4);
+
+    size_written = size_written + 4;
+    log_debug("space written is %d", size_written);
+    log_debug("recorded my state \n");
+}
+
+void send_state() {
+    // reset for next iteration
+    alive_states_received_this_tick = 0;
+    dead_states_received_this_tick = 0;
+
+    // send my new state to the simulation neighbours
+    log_debug("sending my state of %d via multicast with key %d", my_state, my_key);
+    while (!spin1_send_mc_packet(my_key, my_state, WITH_PAYLOAD)) {
+        spin1_delay_us(1);
+    }
+
+    log_debug("sent my state via multicast");
+}
+
+void next_state(){
+    // calculate new state from the total received so far
+    if (my_state == 1) {
+        if (alive_states_received_this_tick <= 1) {
+            my_state = DEAD;
+        } else if (alive_states_received_this_tick <= 3) {
+            my_state = ALIVE;
+        } else { // alive_states_received_this_tick >= 4
+            my_state = DEAD;
+        }
+    } else if (alive_states_received_this_tick == 3) {
+        my_state = ALIVE;
     }
 }
 
@@ -105,13 +182,11 @@ void update(uint ticks, uint b) {
 
     log_info("on tick %d of %d", time, simulation_ticks);
 
-    // check that the run time hasn't already elapsed and thus needs to be
-    // killed
+    // check that the run time hasn't already elapsed and thus needs to be killed
     if ((infinite_run != TRUE) && (time >= simulation_ticks)) {
 
         // update recording data
-        address_t record_region =
-            data_specification_get_region(RECORDED_DATA, address);
+        address_t record_region = data_specification_get_region(RECORDED_DATA, address);
         uint8_t* record_space_address = (uint8_t*) record_region;
         log_info("wrote final store of %d bytes", size_written);
         spin1_memcpy(record_space_address, &size_written, 4);
@@ -120,7 +195,6 @@ void update(uint ticks, uint b) {
 
         // falls into the pause resume mode of operating
         simulation_handle_pause_resume(NULL);
-
         return;
     }
 
@@ -129,111 +203,18 @@ void update(uint ticks, uint b) {
         send_state();
         record_state();
         log_info("Send my first state!");
-    }
-    else{
 
+    } else {
         read_input_buffer();
 
         // find my next state
         next_state();
 
-        // do a safety check on number of states. Not like we can fix it
-        // if we've missed events
+        // do a safety check on number of states. Not like we can fix it if we've missed events
         do_safety_check();
 
         send_state();
-
         record_state();
-    }
-}
-
-void do_safety_check(){
-    // do a safety check on number of states. Not like we can fix it
-    // if we've missed events
-    cpsr = spin1_int_disable();
-    int total = alive_states_recieved_this_tick +
-        dead_states_recieved_this_tick;
-    if (total != 8){
-         log_error("didn't receive the correct number of states");
-         log_error("only received %d states", total);
-    }
-    log_debug("only received %d alive states",
-             alive_states_recieved_this_tick);
-    log_debug("only received %d dead states",
-             dead_states_recieved_this_tick);
-    spin1_mode_restore(cpsr);
-}
-
-void read_input_buffer(){
-
-    cpsr = spin1_int_disable();
-    circular_buffer_print_buffer(input_buffer);
-    // pull payloads from input_buffer. Filter for alive and dead states
-    for (uint32_t counter = 0; counter < 8;
-             counter ++){
-        bool success = circular_buffer_get_next(input_buffer, &current_payload);
-        if (success){
-            if (current_payload == DEAD){
-                 dead_states_recieved_this_tick += 1;
-            }
-            else if(current_payload == ALIVE){
-                 alive_states_recieved_this_tick += 1;
-            }
-            else{
-                 log_error("Not recognised payload");
-            }
-        }
-        else{
-            log_debug("couldn't read state from my neighbours.");
-        }
-
-    }
-    spin1_mode_restore(cpsr);
-}
-
-void record_state(){
-    //* record my state via sdram
-    address_t record_region =
-        data_specification_get_region(RECORDED_DATA, address);
-    uint8_t* record_space_address = (uint8_t*) record_region;
-    record_space_address = record_space_address + 4 + size_written;
-    spin1_memcpy(record_space_address, &my_state, 4);
-    size_written = size_written + 4;
-    log_debug("space written is %d", size_written);
-    log_debug("recorded my state \n");
-}
-
-void send_state(){
-    // reset for next iteration
-    alive_states_recieved_this_tick = 0;
-    dead_states_recieved_this_tick = 0;
-
-    // send my new state to the simulation neighbours
-    log_debug("sending my state of %d via multicast with key %d",
-              my_state, my_key);
-    while (!spin1_send_mc_packet(my_key, my_state, WITH_PAYLOAD)) {
-        spin1_delay_us(1);
-    }
-
-    log_debug("sent my state via multicast");
-}
-
-void next_state(){
-    // calculate new state from the total received so far
-    if (my_state == 1){
-        if(alive_states_recieved_this_tick <= 1){
-            my_state = DEAD;
-        }
-        if (alive_states_recieved_this_tick == 2 |
-                alive_states_recieved_this_tick == 3){
-            my_state = ALIVE;
-        }
-        if (alive_states_recieved_this_tick >= 4){
-            my_state = DEAD;
-        }
-    }
-    else if (alive_states_recieved_this_tick == 3){
-        my_state = ALIVE;
     }
 }
 
@@ -259,16 +240,13 @@ static bool initialize(uint32_t *timer_period) {
     }
 
     // Get the timing details and set up the simulation interface
-    if (!simulation_initialise(
-            data_specification_get_region(SYSTEM_REGION, address),
-            APPLICATION_NAME_HASH, timer_period, &simulation_ticks,
-            &infinite_run, SDP, DMA)) {
+    if (!simulation_initialise(data_specification_get_region(SYSTEM_REGION, address), APPLICATION_NAME_HASH,
+            timer_period, &simulation_ticks, &infinite_run, SDP, DMA)) {
         return false;
     }
 
     // initialise transmission keys
-    address_t transmission_region_address = data_specification_get_region(
-            TRANSMISSIONS, address);
+    address_t transmission_region_address = data_specification_get_region(TRANSMISSIONS, address);
     if (transmission_region_address[HAS_KEY] == 1) {
         my_key = transmission_region_address[MY_KEY];
         log_info("my key is %d\n", my_key);
@@ -280,27 +258,23 @@ static bool initialize(uint32_t *timer_period) {
     }
 
     // read my state
-    address_t my_state_region_address = data_specification_get_region(
-        STATE, address);
+    address_t my_state_region_address = data_specification_get_region(STATE, address);
     my_state = my_state_region_address[INITIAL_STATE];
     log_info("my initial state is %d\n", my_state);
 
     // read neighbour states for initial tick
-    address_t my_neigbhour_state_region_address = data_specification_get_region(
-        NEIGHBOUR_INITIAL_STATES, address);
-    alive_states_recieved_this_tick = my_neigbhour_state_region_address[0];
-    dead_states_recieved_this_tick = my_neigbhour_state_region_address[1];
+    address_t my_neighbour_state_region_address = data_specification_get_region(NEIGHBOUR_INITIAL_STATES, address);
+    alive_states_received_this_tick = my_neighbour_state_region_address[0];
+    dead_states_received_this_tick = my_neighbour_state_region_address[1];
 
     // initialise my input_buffer for receiving packets
     input_buffer = circular_buffer_initialize(256);
-    if (input_buffer == 0){
+    if (input_buffer == 0) {
         return false;
     }
     log_info("input_buffer initialised");
 
     return true;
-
-
 }
 
 /****f* conways.c/c_main
