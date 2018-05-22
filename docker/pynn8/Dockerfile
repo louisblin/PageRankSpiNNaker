@@ -1,4 +1,4 @@
-# Written for a build context as images/
+# Written for a build context as docker/
 FROM ubuntu:14.04
 
 # Set cwd / env

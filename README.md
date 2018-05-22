@@ -20,7 +20,7 @@ These images are available under the two versions, accessible via a specific tag
 - **prod** version, via _`<img>`_ for the slim version of the image
 - **dev** version, via _`<img>:[<tag>-]dev`_ which adds some development tools such as
 `vim` and loads a custom `zsh` / `oh-my-zsh` shell - see
-`images/common/Dockerfile-dev` for further details.
+`docker/common/Dockerfile-dev` for further details.
 
 ## Usage
 

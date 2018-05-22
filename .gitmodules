@@ -1,5 +1,5 @@
 [submodule "pynn8/PyNN8Examples"]
-	path = images/pynn8/PyNN8Examples
+	path = docker/pynn8/PyNN8Examples
 	url = https://github.com/SpiNNakerManchester/PyNN8Examples.git
 [submodule "python/sPyNNaker8NewModelTemplate"]
 	path = python/sPyNNaker8NewModelTemplate

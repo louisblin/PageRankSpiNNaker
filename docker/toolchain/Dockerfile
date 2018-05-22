@@ -1,4 +1,4 @@
-# Written for a build context as images/ and a given DOCKER_TAG
+# Written for a build context as docker/ and a given DOCKER_TAG
 FROM ubuntu:14.04
 ARG DOCKER_TAG
 
