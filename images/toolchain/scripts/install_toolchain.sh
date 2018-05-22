@@ -5,7 +5,7 @@ set -eu
 function clone_repository {
   rep="$1"
   tag="$2"
-  args="$3"
+  args="${3:-}"
 
   git clone "https://github.com/SpiNNakerManchester/$rep.git"
   cd "$rep"
