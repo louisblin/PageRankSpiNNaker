@@ -47,7 +47,7 @@ case $DOCKER_TAG in
     ;;
 
     v4.0.0)      ### DOCKER_TAG=4.0.0
-    sudo pip install --user rig appdirs "scipy>=0.16.0"
+    sudo pip install --user rig appdirs matplotlib "scipy>=0.16.0"
 
     for rep in $SPINN_COMMON_REPOS; do
         clone_repository "$rep" "4.0.0" "--no-deps"
