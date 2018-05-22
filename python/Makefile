@@ -1,6 +1,6 @@
 # Shorthand to run the examples
 
 PageRankModel-%:
-	$(eval ROOT := $(shell pwd)/sPyNNaker8NewModelTemplate)
-	$(MAKE) -C $(ROOT)/c_models
-	zsh -c "cd $(ROOT) && export PYTHONPATH=$(ROOT) && python examples/$(patsubst PageRankModel-%,%,$@).py"
+	$(eval ROOT := $(shell pwd)/sPyNNaker8PageRankModel)
+	bash -c ". ~/.spinnaker_env && $(MAKE) -C $(ROOT)/c_models"
+	bash -c "export PYTHONPATH=$(ROOT) && python $(ROOT)/examples/$(patsubst PageRankModel-%,%,$@).py"
