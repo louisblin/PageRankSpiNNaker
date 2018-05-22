@@ -33,3 +33,16 @@ The toolchain v4.0.0 w/ the directory of examples mounted can be started as foll
 ##### developing
 
 Consider sourcing `./scripts/set_env` in your `.<shell>rc` to add the scripts to your `PATH`. 
+
+
+## Example
+
+All the examples are located under `python/`.
+
+##### Page Rank `python/sPyNNaker8PageRankModel`
+
+This is a new neuron model that extends those defined by `SpiNNakerManchester/sPyNNaker`. It aims to provide an interface to run Page Rank algorithms on top the PyNN neural simulations framework, which sPyNNaker implements. 
+
+The following shows how the `toolchain:v4.0.0` can be used to compute Page Rank on a trivial ring graph A -> B -> C -> A.
+
+![Simple Page Rank](https://media.giphy.com/media/ygx6OwL2wfrQFszkQs/giphy.gif)
