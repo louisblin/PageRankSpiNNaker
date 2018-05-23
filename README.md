@@ -45,4 +45,4 @@ This is a new neuron model that extends those defined by `SpiNNakerManchester/sP
 
 The following shows how the `toolchain:v4.0.0` can be used to compute Page Rank on a trivial ring graph A -> B -> C -> A.
 
-![Simple Page Rank](https://media.giphy.com/media/ygx6OwL2wfrQFszkQs/giphy.gif)
+![Simple Page Rank](docs/page_rank_simple.gif)
