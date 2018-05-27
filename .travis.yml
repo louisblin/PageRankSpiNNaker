@@ -16,22 +16,9 @@ env:
     - DOCKER_IMAGE=toolchain  DOCKER_TAG_PROD=v2016.001  DOCKER_TAG_DEV=v2016.001-dev
     - DOCKER_IMAGE=toolchain  DOCKER_TAG_PROD=v4.0.0     DOCKER_TAG_DEV=v4.0.0-dev
 
-install:
-  - echo "Nothing to do"
+install: echo "Nothing to do"
 
-script:
-  - | # Build docker PROD image
-    docker build \
-    --tag "${DOCKER_USERNAME}/${DOCKER_IMAGE}:${DOCKER_TAG_PROD}" \
-    --file "docker/${DOCKER_IMAGE}/Dockerfile" \
-    --build-arg DOCKER_TAG="${DOCKER_TAG_PROD}" \
-    docker
-  - | # Build docker DEV image
-    docker build \
-    --tag "${DOCKER_USERNAME}/${DOCKER_IMAGE}:${DOCKER_TAG_DEV}" \
-    --file docker/common/Dockerfile-dev \
-    --build-arg BASE_IMAGE="${DOCKER_IMAGE}:${DOCKER_TAG_PROD}" \
-    docker
+script: ./scripts/docker_build
 
 # Publish on DockerHub
 deploy:

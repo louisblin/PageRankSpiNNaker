@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+
+PROJECT_ROOT="`( cd \"$(dirname \"$0\")/..\" && pwd )`"
+
+BUILD_ROOT="${PROJECT_ROOT}/docker"
+BUILD_IMAGE_ROOT="${BUILD_ROOT}/${DOCKER_IMAGE}"
+BUILD_COMMON_ROOT="${BUILD_ROOT}/common"
+
+IMAGE_PROD="${DOCKER_USERNAME}/${DOCKER_IMAGE}:${DOCKER_TAG_PROD}"
+IMAGE_DEV="${DOCKER_USERNAME}/${DOCKER_IMAGE}:${DOCKER_TAG_DEV}"
+
+
+function get_commit_hash {
+    git rev-parse --short --verify HEAD
+}
+
+function get_commit_date {
+    git log -1 --format=%cd --date=local
+}
+
+function get_docker_commit_hash {
+    docker run --tty --rm "${1}" env | grep PROJECT_COMMIT
+}
+
+function are_images_up_to_date {
+    echo "Rebuild images? Comparing with '${IMAGE_PROD}'"
+    LAST_COMMIT="`get_docker_commit_hash ${IMAGE_PROD}`"
+
+    # If no LAST_COMMIT, rebuild
+    if [[ -z "$LAST_COMMIT" ]]; then
+        return 1
+    fi
+
+    echo -n "Commit ${LAST_COMMIT} on '`get_commit_date`'..."
+
+    # Are there difference under ./docker/ since last commit
+    git diff --quiet .."${LAST_COMMIT}" "${BUILD_IMAGE_ROOT}" "${BUILD_COMMON_ROOT}"
+    return $?
+}
+
+function build_prod {
+    echo "Building prod image '${IMAGE_PROD}'..."
+    docker build \
+        --tag "${IMAGE_PROD}" \
+        --file "${BUILD_IMAGE_ROOT}/Dockerfile" \
+        --build-arg DOCKER_TAG="${DOCKER_TAG_PROD}" \
+        --build-arg PROJECT_COMMIT="`get_commit_hash`" \
+        "${BUILD_ROOT}"
+}
+
+function build_dev {
+    echo "Building dev image '${IMAGE_DEV}'..."
+    docker build \
+        --tag "${IMAGE_DEV}" \
+        --file "${BUILD_COMMON_ROOT}/Dockerfile-dev" \
+        --build-arg BASE_IMAGE="${DOCKER_IMAGE}:${DOCKER_TAG_PROD}" \
+        --build-arg PROJECT_COMMIT="`get_commit_hash`" \
+        "${BUILD_ROOT}"
+}
+
+
+if are_images_up_to_date; then
+    echo "up to date"
+else
+    echo "needs rebuild"
+    build_prod
+    build_dev
+fi

@@ -49,7 +49,7 @@ This is a new neuron model that extends those defined by `SpiNNakerManchester/sP
 To run an `python/PageRankModel/examples/<example_name>.py`, use:
 
 ```sh
-# Starts the container in interactive mode
+# Starts the toolchain container in interactive mode
 ./scripts/start_container louisleblin/toolchain:v4.0.0-dev --volume $PWD/python:/app/w
 
 ...
