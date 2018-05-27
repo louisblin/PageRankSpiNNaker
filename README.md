@@ -39,7 +39,7 @@ Consider sourcing `./scripts/set_env` in your `.<shell>rc` to add the scripts to
 
 All the examples are located under `python/`.
 
-##### Page Rank `python/sPyNNaker8PageRankModel`
+##### Page Rank [`python/PageRankModel`](https://github.com/louisblin/PageRankModel)
 
 This is a new neuron model that extends those defined by `SpiNNakerManchester/sPyNNaker`. It aims to
  provide an interface to run Page Rank algorithms on top the PyNN neural simulations framework, 
