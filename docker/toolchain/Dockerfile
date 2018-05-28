@@ -2,6 +2,11 @@
 FROM ubuntu:14.04
 ARG DOCKER_TAG
 
+# Save project commit used to build image
+ARG PROJECT_COMMIT
+ENV PROJECT_COMMIT $PROJECT_COMMIT
+
+
 # Set cwd / env
 WORKDIR /app
 ENV DEBIAN_FRONTEND noninteractive

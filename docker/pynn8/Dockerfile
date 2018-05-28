@@ -1,6 +1,10 @@
 # Written for a build context as docker/
 FROM ubuntu:14.04
 
+# Save project commit used to build image
+ARG PROJECT_COMMIT
+ENV PROJECT_COMMIT $PROJECT_COMMIT
+
 # Set cwd / env
 WORKDIR /app
 ENV DEBIAN_FRONTEND noninteractive
