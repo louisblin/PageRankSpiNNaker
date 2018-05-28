@@ -19,7 +19,7 @@ function get_commit_date {
 }
 
 function get_docker_commit_hash {
-    docker run --tty --rm "${1}" env | grep PROJECT_COMMIT
+    docker run --tty --rm "${1}" env | grep -oP "PROJECT_COMMIT=\K\w+"
 }
 
 function are_images_up_to_date {
@@ -54,7 +54,6 @@ function build_dev {
         --tag "${IMAGE_DEV}" \
         --file "${BUILD_COMMON_ROOT}/Dockerfile-dev" \
         --build-arg BASE_IMAGE="${DOCKER_IMAGE}:${DOCKER_TAG_PROD}" \
-        --build-arg PROJECT_COMMIT="`get_commit_hash`" \
         "${BUILD_ROOT}"
 }
 
