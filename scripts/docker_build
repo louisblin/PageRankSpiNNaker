@@ -60,6 +60,7 @@ function build_dev {
 
 if are_images_up_to_date; then
     echo "up to date"
+    export FYP_SKIP_DOCKER_BUILD=1
 else
     echo "needs rebuild"
     build_prod

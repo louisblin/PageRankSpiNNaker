@@ -2,6 +2,11 @@
 
 set -eu
 
+if [ -z ${FYP_SKIP_DOCKER_BUILD+x} ]; then
+    echo "Rebuild images? up to date"
+    exit 0
+fi
+
 echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
 
 IMAGE_PROD="${DOCKER_USERNAME}/${DOCKER_IMAGE}:${DOCKER_TAG_PROD}"
