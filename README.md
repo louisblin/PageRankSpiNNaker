@@ -67,14 +67,18 @@ or as a one-liner:
 
 ##### Page Rank on [`simple_4_vertices`](https://github.com/louisblin/PageRankModel/blob/master/examples/simple_4_vertices.py)
 
-The following caption shows how the `toolchain:v4.0.0` can be used to compute Page Rank on a simple 
-graph as described in [this video](https://www.youtube.com/watch?v=P8Kt6Abq_rM). First, the input
-graph is displayed, where 0 maps to node A, 1 to node B, etc... Then Page Rank is computed on 
-SpiNNaker and an output graph is displayed, showing the evolution over time of the rank of each node. 
-As we can see, the first three iterations match the results obtained in the video. 
+The following caption shows how the `toolchain:v4.0.0-dev` can be used to compute Page Rank on a 
+simple graph as described in [this video](https://www.youtube.com/watch?v=P8Kt6Abq_rM). First, the
+input graph is displayed to visually confirm its structure. Then, Page Rank is computed on SpiNNaker
+and an output graph is displayed, showing the evolution over time of the rank of each node.
 
-Note: due to non-deterministic callback scheduling on SpiNNaker, duplicate rows can be observed in 
-the output and reflect that 2 time steps were required to compute a single Page Rank iteration.
+Additionnally, a python implementation of Page Rank runs on the same graph and is used to ensure
+the results obtained are correct. As we can see, the results match when comparing the first
+three decimals but they differ after that because of fixed point arithmetic imprecision.
+
+_Note_: due to non-deterministic callback scheduling on SpiNNaker, a Page Rank iteration can require
+two SpiNNaker time steps to be completed. This leads to duplicate consecutive values on the output
+graph.
 
 ![Simple Page Rank](docs/page_rank_simple.gif)
 
