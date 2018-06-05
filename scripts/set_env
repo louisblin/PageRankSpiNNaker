@@ -5,7 +5,11 @@ echo "Setting environment for FYP..."
 CURR_DIR="`( cd \"$(dirname \"$0\")\" && pwd )`"
 export PATH=$PATH:"$CURR_DIR"
 
+# Configure the host network interfaces to connect with the board
 alias fyp-netconf="start_container -c"
+
+# cd to the provenance data from the last run
+alias prov="cd /app/spinnaker_logs/reports/\`ls /app/spinnaker_logs/reports | tail -n 1\`/run_1/provenance_data"
 
 #echo "Reconfiguring network settings each 1sec..."
 #(while :; do sleep 1 && fyp-netconf &>/dev/null ; done) &
