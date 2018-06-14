@@ -7,7 +7,7 @@ RUN_TIME = 2.1
 
 
 def run(show_in=False, show_out=False):
-    ###############################################################################
+    ############################################################################
     # Construct simulation graph
     # From: https://www.youtube.com/watch?v=P8Kt6Abq_rM
 
@@ -21,7 +21,7 @@ def run(show_in=False, show_out=False):
         ('D', 'C'),
     ]
 
-    ###############################################################################
+    ############################################################################
     # Run simulation / report
 
     with PageRankSimulation(RUN_TIME, edges, damping=1-10e-10,

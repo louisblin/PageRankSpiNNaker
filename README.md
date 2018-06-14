@@ -16,16 +16,19 @@ environment for SpiNNaker Graph Front End Developer toolchain v2016.001
 - [**louisleblin/toolchain:v4.0.0**](https://hub.docker.com/r/louisleblin/toolchain-v2016/):
 same, but v4.0.0
 
-These images are available under the two versions, accessible via a specific tag:
+These images are available under the two versions, accessible via a specific 
+tag:
 
 - **prod** version, via _`<img>`_ for the slim version of the image
-- **dev** version, via _`<img>:[<tag>-]dev`_ which adds some development tools such as
+- **dev** version, via _`<img>:[<tag>-]dev`_ which adds some development tools 
+such as
 `vim` and loads a custom `zsh` / `oh-my-zsh` shell - see
 `docker/common/Dockerfile-dev` for further details.
 
 ##### Usage
 
-The toolchain v4.0.0 w/ the directory of examples mounted can be started as follows:
+The toolchain v4.0.0 w/ the directory of examples mounted can be started as 
+follows:
 
 ```sh
 ./scripts/start_container louisleblin/toolchain:v4.0.0-dev --volume $PWD/python:/app/w
@@ -33,18 +36,25 @@ The toolchain v4.0.0 w/ the directory of examples mounted can be started as foll
 
 ##### Developing
 
-Consider sourcing `./scripts/set_env` in your `.<shell>rc` to add the scripts to your `PATH`. 
+Consider sourcing `./scripts/set_env` in your `.<shell>rc` to add the scripts 
+to your `PATH`. 
 
 
-## Examples
-
-All the examples are located under `python/page_rank/examples`.
+## Page Rank on SpiNNaker
 
 ### Page Rank Model (`python/page_rank/model`)
 
-This is a new neuron model that extends those defined by `SpiNNakerManchester/sPyNNaker`. It aims to
- provide an interface to run Page Rank algorithms on top the PyNN neural simulations framework, 
- which sPyNNaker implements. 
+We adapt the existing `SpiNNakerManchester/sPyNNaker` spiking neural network 
+framework to support Page Rank simulations. Neurons become vertices, synapses 
+are now message dispatchers that propagate rank updates along edges. The model 
+is constituted of:
+
+* `c_models`: the C implementation of the model, which runs on SpiNNaker.
+* `python_models`: the Python specification of a Page Rank simulation.
+* `tools/simulation.py`: a unique interface that exposes a user-friendly
+ `PageRankSimulation` class that does all the heavy lifting. 
+ 
+### Examples (`python/page_rank/examples`)
 
 To run an `python/page_rank/examples/<example_name>.py`, use:
 
@@ -67,18 +77,15 @@ or as a one-liner:
 
 ##### Page Rank on [`simple_4_vertices`](python/page_rank/examples/simple_4_vertices.py)
 
-The following caption shows how the `toolchain:v4.0.0-dev` can be used to compute Page Rank on a 
-simple graph as described in [this video](https://www.youtube.com/watch?v=P8Kt6Abq_rM). First, the
-input graph is displayed to visually confirm its structure. Then, Page Rank is computed on SpiNNaker
-and an output graph is displayed, showing the evolution over time of the rank of each node.
+The following caption shows how the `toolchain:v4.0.0-dev` can be used to 
+compute Page Rank on a simple graph as described in 
+[this video](https://www.youtube.com/watch?v=P8Kt6Abq_rM). First, the input 
+graph is displayed to visually confirm its structure. Then, Page Rank is 
+computed on SpiNNaker and an output graph is displayed, showing the evolution 
+over time of the rank of each node.
 
-Additionnally, a python implementation of Page Rank runs on the same graph and is used to ensure
-the results obtained are correct. As we can see, the results match when comparing the first
-three decimals but they differ after that because of fixed point arithmetic imprecision.
-
-_Note_: due to non-deterministic callback scheduling on SpiNNaker, a Page Rank iteration can require
-two SpiNNaker time steps to be completed. This leads to duplicate consecutive values on the output
-graph.
+Additionnally, a Python implementation of Page Rank runs on the same graph and 
+is used to ensure the results obtained are correct.
 
 ![Simple Page Rank](docs/page_rank_simple.gif)
 
