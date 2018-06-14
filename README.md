@@ -38,15 +38,15 @@ Consider sourcing `./scripts/set_env` in your `.<shell>rc` to add the scripts to
 
 ## Examples
 
-All the examples are located under `python/`.
+All the examples are located under `python/page_rank/examples`.
 
-### Page Rank [`python/PageRankModel`](https://github.com/louisblin/PageRankModel)
+### Page Rank Model (`python/page_rank/model`)
 
 This is a new neuron model that extends those defined by `SpiNNakerManchester/sPyNNaker`. It aims to
  provide an interface to run Page Rank algorithms on top the PyNN neural simulations framework, 
  which sPyNNaker implements. 
 
-To run an `python/PageRankModel/examples/<example_name>.py`, use:
+To run an `python/page_rank/examples/<example_name>.py`, use:
 
 ```sh
 # Starts the toolchain container in interactive mode
@@ -55,17 +55,17 @@ To run an `python/PageRankModel/examples/<example_name>.py`, use:
 ...
 
 # In the container
-cd PageRankModel
+cd page_rank/examples
 make <example_name>
 ```
 
 or as a one-liner:
 
 ```sh
-./scripts/start_container louisleblin/toolchain:v4.0.0-dev --volume $PWD/python:/app/w --rm --exec "make -C PageRankModel <example_name>"
+./scripts/start_container louisleblin/toolchain:v4.0.0-dev --volume $PWD/python:/app/w --rm --exec "make -C page_rank/examples <example_name>"
 ```
 
-##### Page Rank on [`simple_4_vertices`](https://github.com/louisblin/PageRankModel/blob/master/examples/simple_4_vertices.py)
+##### Page Rank on [`simple_4_vertices`](python/page_rank/examples/simple_4_vertices.py)
 
 The following caption shows how the `toolchain:v4.0.0-dev` can be used to compute Page Rank on a 
 simple graph as described in [this video](https://www.youtube.com/watch?v=P8Kt6Abq_rM). First, the

@@ -1,0 +1,71 @@
+# If SPINN_DIRS is not defined, this is an error!
+ifndef SPINN_DIRS
+    $(error SPINN_DIRS is not set.  Please define SPINN_DIRS (possibly by running "source setup" in the spinnaker package folder))
+endif
+
+ifeq ($(SPYNNAKER_DEBUG), DEBUG)
+    VERTEX_DEBUG = LOG_DEBUG
+    SYNAPSE_DEBUG = LOG_DEBUG
+endif
+
+ifndef VERTEX_DEBUG
+    VERTEX_DEBUG = LOG_INFO
+endif
+
+ifndef SYNAPSE_DEBUG
+    SYNAPSE_DEBUG = LOG_INFO
+endif
+
+#POPULATION_TABLE_IMPL := fixed
+POPULATION_TABLE_IMPL := binary_search
+
+ifndef VERTEX_MODEL
+    $(error VERTEX_MODEL is not set.  Please choose a neuron model to compile)
+else
+    VERTEX_MODEL_O = $(call build_dir, $(VERTEX_MODEL))
+endif
+
+ifndef VERTEX_MODEL_H
+    $(error VERTEX_MODEL_H is not set.  Please select a neuron model header file)
+endif
+
+
+VERTEX_O = $(call build_dir, $(VERTEX_C))
+
+SOURCES = $(SOURCE_DIR)/common/out_spikes.c \
+          $(C_MAIN_C) \
+          $(MESSAGE_DISPATCHING_C) \
+          $(VERTEX_C) \
+          $(MESSAGE_PROCESSING_C) \
+	      $(SOURCE_DIR)/neuron/population_table/population_table_$(POPULATION_TABLE_IMPL)_impl.c \
+	      $(VERTEX_MODEL) $(SYNAPSE_DYNAMICS) $(OTHER_SOURCES)
+
+SYNAPSE_TYPE_SOURCES += $(C_MAIN_C) \
+                        $(MESSAGE_DISPATCHING_C) \
+                        $(MESSAGE_PROCESSING_C) \
+                        $(SYNAPSE_DYNAMICS) \
+                        $(SOURCE_DIR)/neuron/population_table/population_table_fixed_impl.c \
+                        $(SOURCE_DIR)/neuron/population_table/population_table_binary_search_impl.c
+
+
+include $(SPINN_DIRS)/make/Makefile.SpiNNFrontEndCommon
+
+define synapse_type_rule
+$$(call build_dir, $(1)): $(1)
+	-mkdir -p $$(dir $$@)
+	$$(CC) -D__FILE__=\"$$(notdir $$*.c)\" -DLOG_LEVEL=$(SYNAPSE_DEBUG) \
+	        $$(CFLAGS) \
+	        -o $$@ $$<
+endef
+
+$(foreach obj, $(SYNAPSE_TYPE_SOURCES), $(eval $(call synapse_type_rule, $(obj))))
+
+$(VERTEX_MODEL_O): $(VERTEX_MODEL)
+	-mkdir -p $(dir $@)
+	$(CC) -D__FILE__=\"$(notdir $*.c)\" -DLOG_LEVEL=$(VERTEX_DEBUG) \
+	        $(CFLAGS) -o $@ $<
+
+$(VERTEX_O): $(VERTEX_C) $(VERTEX_MODEL_H)
+	-mkdir -p $(dir $@)
+	$(CC) -D__FILE__=\"neuron.c\" -DLOG_LEVEL=$(VERTEX_DEBUG) $(CFLAGS) \
+	      -include $(VERTEX_MODEL_H) -o $@ $<
