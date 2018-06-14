@@ -1,5 +1,5 @@
 # Shorthand to run the examples
-PYTHON_ROOT := $(CURDIR)/../../..
+PYTHON_ROOT := $(CURDIR)/../..
 EXAMPLES := $(patsubst $(CURDIR)/%.py, %, $(wildcard $(CURDIR)/*.py))
 
 build:
