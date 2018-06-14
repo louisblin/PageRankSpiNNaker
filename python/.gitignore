@@ -4,3 +4,7 @@ reports
 build
 *.aplx
 *.txt
+
+# Python
+*.pyc
+*.egg-info

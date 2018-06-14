@@ -1,6 +1,3 @@
 [submodule "pynn8/PyNN8Examples"]
 	path = docker/pynn8/PyNN8Examples
 	url = https://github.com/SpiNNakerManchester/PyNN8Examples.git
-[submodule "python/PageRankModel"]
-	path = python/PageRankModel
-	url = https://github.com/louisblin/PageRankModel.git
