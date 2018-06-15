@@ -1,9 +1,8 @@
 #include "message_processing.h"
 #include "message_dispatching.h"
-#include "models/vertex_model_page_rank.h"
-#include <neuron/population_table/population_table.h>
-#include <neuron/synapse_row.h>
 #include "in_messages.h"
+#include "models/vertex_model_page_rank.h"
+#include "population_table/population_table.h"
 #include <simulation.h>
 #include <spin1_api.h>
 #include <debug.h>
@@ -16,7 +15,8 @@
 
 // DMA buffer structure combines the row read from SDRAM with
 typedef struct dma_buffer {
-    // Key of originating spike (used to allow row data to be re-used for multiple spikes)
+    // Key of originating spike (used to allow row data to be re-used for
+    //   multiple spikes)
     spike_t originating_spike_key;
     spike_t originating_spike_payload;
 
@@ -61,14 +61,16 @@ static inline bool _get_key_payload() {
 
     if (!in_messages_get_next_spike(&spike_pkt_payload)) {
         log_error(
-            "_get_key_payload inconsistency: expected in_messages items to be retrievable by "
-            "pair (%03d[%08x]=?)", (0xff & spike_pkt_key), spike_pkt_key);
+            "_get_key_payload inconsistency: expected in_messages items to be "
+            "retrievable by pair (%03d[%08x]=?)", (0xff & spike_pkt_key),
+            spike_pkt_key);
         return false;
     }
     return true;
 }
 
-static inline void _do_dma_read(address_t row_address, size_t n_bytes_to_transfer) {
+static inline void _do_dma_read(address_t row_address,
+        size_t n_bytes_to_transfer) {
     log_debug("_do_dma_read: row_address[0]=%u | n_bytes_to_transfer=%u",
         ((uint32_t) row_address[0]), n_bytes_to_transfer);
 
@@ -81,7 +83,8 @@ static inline void _do_dma_read(address_t row_address, size_t n_bytes_to_transfe
 
     // Start a DMA transfer to fetch this synaptic row into current buffer
     buffer_being_read = next_buffer_to_fill;
-    spin1_dma_transfer(DMA_TAG, row_address, next_buffer->row, DMA_READ, n_bytes_to_transfer);
+    spin1_dma_transfer(DMA_TAG, row_address, next_buffer->row, DMA_READ,
+                       n_bytes_to_transfer);
     next_buffer_to_fill = (next_buffer_to_fill + 1) % N_DMA_BUFFERS;
 }
 
@@ -90,7 +93,8 @@ static inline void _do_direct_row(address_t row_address) {
     log_debug("_do_direct_row: row_address[0]=%u", ((uint32_t) row_address[0]));
 
     single_fixed_synapse[3] = (uint32_t) row_address[0];
-    message_dispatching_process_synaptic_row_page_rank(single_fixed_synapse, spike_pkt_payload);
+    message_dispatching_process_synaptic_row_page_rank(single_fixed_synapse,
+        spike_pkt_payload);
 }
 
 static inline void _setup_synaptic_dma_read() {
@@ -211,19 +215,24 @@ void _dma_complete_callback(uint unused, uint tag) {
     do {
 
         // Are there any more incoming spikes from the same pre-synaptic neuron?
-        subsequent_spikes = in_messages_is_next_spike_equal(current_buffer->originating_spike_key);
+        subsequent_spikes = in_messages_is_next_spike_equal(
+            current_buffer->originating_spike_key);
         spike_t payload = current_buffer->originating_spike_payload;
 
-        log_debug("message_dispatching_process_synaptic_row_page_rank(%d, 0x%08x, 0x%08x)", time,
-            current_buffer->row, payload);
+        log_debug("message_dispatching_process_synaptic_row_page_rank"
+                  "(%d, 0x%08x, 0x%08x)", time, current_buffer->row, payload);
 
         // Process packet
-        if (!message_dispatching_process_synaptic_row_page_rank(current_buffer->row, payload)) {
+        if (!message_dispatching_process_synaptic_row_page_rank(
+                current_buffer->row, payload)) {
             log_error("Error processing spike 0x%08x=0x%08x for local=0x%.8x",
-                current_buffer->originating_spike_key, payload, current_buffer->row);
+                current_buffer->originating_spike_key, payload,
+                current_buffer->row);
 
             // Print out the row for debugging
-            for (uint32_t i = 0; i < (current_buffer->n_bytes_transferred >> 2); i++) {
+            for (uint32_t i = 0;
+                 i < (current_buffer->n_bytes_transferred >> 2);
+                 i++) {
                 log_error("%u: 0x%.8x", i, current_buffer->row[i]);
             }
 
@@ -235,19 +244,20 @@ void _dma_complete_callback(uint unused, uint tag) {
 
 /* INTERFACE FUNCTIONS - cannot be static */
 
-bool message_processing_initialise(
-        size_t row_max_n_words, uint32_t mc_pkt_callback_priority,
-        uint32_t user_event_priority, uint32_t incoming_spike_buffer_size) {
+bool message_processing_initialise(size_t row_max_n_words,
+        uint32_t mc_pkt_callback_priority, uint32_t user_event_priority,
+        uint32_t incoming_message_buffer_length) {
 
     // Check priority is -1, i.e. callback cannot be preempted
     if (mc_pkt_callback_priority != 0xffffffff) {
-        log_error("mc_pkt_callback_priority = %u != -1: callback could be preempted",
-            mc_pkt_callback_priority);
+        log_error("mc_pkt_callback_priority = %u != -1: callback could be "
+                  "preempted", mc_pkt_callback_priority);
     }
 
     // Allocate the DMA buffers
     for (uint32_t i = 0; i < N_DMA_BUFFERS; i++) {
-        dma_buffers[i].row = (uint32_t*) spin1_malloc(row_max_n_words * sizeof(uint32_t));
+        dma_buffers[i].row = (uint32_t*)
+            spin1_malloc(row_max_n_words * sizeof(uint32_t));
         if (dma_buffers[i].row == NULL) {
             log_error("Could not initialise DMA buffers");
             return false;
@@ -259,13 +269,13 @@ bool message_processing_initialise(
     buffer_being_read = N_DMA_BUFFERS;
     max_n_words = row_max_n_words;
 
-    // Allocate incoming spike buffer
-    // TODO: re-compute this
-    if (!in_messages_initialize_spike_buffer(incoming_spike_buffer_size)) {
+    // Allocate incoming message buffer
+    if (!in_messages_initialize_spike_buffer(incoming_message_buffer_length)) {
         return false;
     }
 
-    // Set up for single fixed message_dispatching (data that is consistent per direct row)
+    // Set up for single fixed message_dispatching (data that is consistent per
+    //   direct row)
     single_fixed_synapse[0] = 0;
     single_fixed_synapse[1] = 1;
     single_fixed_synapse[2] = 0;

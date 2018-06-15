@@ -1,7 +1,20 @@
-# If SPINN_DIRS is not defined, this is an error!
+ifndef NEURAL_MODELLING_DIRS
+    $(error NEURAL_MODELLING_DIRS is not set.  Please define NEURAL_MODELLING_DIRS (possibly by running "source setup" in the neural_modelling folder within the sPyNNaker source folder))
+endif
+
 ifndef SPINN_DIRS
     $(error SPINN_DIRS is not set.  Please define SPINN_DIRS (possibly by running "source setup" in the spinnaker package folder))
 endif
+
+ifndef VERTEX_MODEL
+    $(error VERTEX_MODEL is not set.  Please choose a neuron model to compile)
+endif
+
+ifndef VERTEX_MODEL_H
+    $(error VERTEX_MODEL_H is not set.  Please select a neuron model header file)
+endif
+
+# Debugging
 
 ifeq ($(SPYNNAKER_DEBUG), DEBUG)
     VERTEX_DEBUG = LOG_DEBUG
@@ -16,36 +29,46 @@ ifndef SYNAPSE_DEBUG
     SYNAPSE_DEBUG = LOG_INFO
 endif
 
-#POPULATION_TABLE_IMPL := fixed
-POPULATION_TABLE_IMPL := binary_search
+# Build parameters
 
-ifndef VERTEX_MODEL
-    $(error VERTEX_MODEL is not set.  Please choose a neuron model to compile)
-else
-    VERTEX_MODEL_O = $(call build_dir, $(VERTEX_MODEL))
-endif
+MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
+CURRENT_DIR := $(dir $(MAKEFILE_PATH))
+EXTRA_SRC_DIR := $(abspath $(CURRENT_DIR)/../..)
+SOURCE_DIRS += $(EXTRA_SRC_DIR)
+APP_OUTPUT_DIR := $(abspath $(CURRENT_DIR)../../../../python_models/model_binaries/)/
+# Override some imported headers
+CFLAGS += -I$(NEURAL_MODELLING_DIRS)/src -Wno-type-limits
 
-ifndef VERTEX_MODEL_H
-    $(error VERTEX_MODEL_H is not set.  Please select a neuron model header file)
-endif
+# Number of bits required by the synapse type in the synapse row data structure
+# Note: must match the number returned by the python method get_n_synapse_type_bits
+CFLAGS += -DSYNAPSE_TYPE_BITS=0
 
+# Number of synapse types
+# Note: must match the number returned by the python method get_n_synapse_types
+CFLAGS += -DSYNAPSE_TYPE_COUNT=0
 
+include $(NEURAL_MODELLING_DIRS)/src/Makefile.paths
+
+# Build targets
+
+VERTEX_MODEL_O = $(call build_dir, $(VERTEX_MODEL))
 VERTEX_O = $(call build_dir, $(VERTEX_C))
 
-SOURCES = $(SOURCE_DIR)/common/out_spikes.c \
-          $(C_MAIN_C) \
-          $(MESSAGE_DISPATCHING_C) \
-          $(VERTEX_C) \
-          $(MESSAGE_PROCESSING_C) \
-	      $(SOURCE_DIR)/neuron/population_table/population_table_$(POPULATION_TABLE_IMPL)_impl.c \
-	      $(VERTEX_MODEL) $(SYNAPSE_DYNAMICS) $(OTHER_SOURCES)
+SOURCES = $(EXTRA_SRC_DIR)/neuron/c_main.c \
+          $(EXTRA_SRC_DIR)/neuron/message_dispatching.c \
+          $(EXTRA_SRC_DIR)/neuron/message_processing.c \
+          $(EXTRA_SRC_DIR)/neuron/population_table/population_table_binary_search_impl.c \
+          $(EXTRA_SRC_DIR)/neuron/vertex.c \
+	      $(VERTEX_MODEL) \
+          $(SOURCE_DIR)/neuron/plasticity/synapse_dynamics_static_impl.c \
+	      $(SOURCE_DIR)/common/out_spikes.c \
+          $(OTHER_SOURCES)
 
-SYNAPSE_TYPE_SOURCES += $(C_MAIN_C) \
-                        $(MESSAGE_DISPATCHING_C) \
-                        $(MESSAGE_PROCESSING_C) \
-                        $(SYNAPSE_DYNAMICS) \
-                        $(SOURCE_DIR)/neuron/population_table/population_table_fixed_impl.c \
-                        $(SOURCE_DIR)/neuron/population_table/population_table_binary_search_impl.c
+SYNAPSE_TYPE_SOURCES += $(EXTRA_SRC_DIR)/neuron/c_main.c \
+                        $(EXTRA_SRC_DIR)/neuron/message_dispatching.c \
+                        $(EXTRA_SRC_DIR)/neuron/message_processing.c \
+                        $(EXTRA_SRC_DIR)/neuron/population_table/population_table_binary_search_impl.c \
+                        $(SOURCE_DIR)/neuron/plasticity/synapse_dynamics_static_impl.c
 
 
 include $(SPINN_DIRS)/make/Makefile.SpiNNFrontEndCommon
@@ -67,5 +90,5 @@ $(VERTEX_MODEL_O): $(VERTEX_MODEL)
 
 $(VERTEX_O): $(VERTEX_C) $(VERTEX_MODEL_H)
 	-mkdir -p $(dir $@)
-	$(CC) -D__FILE__=\"neuron.c\" -DLOG_LEVEL=$(VERTEX_DEBUG) $(CFLAGS) \
+	$(CC) -D__FILE__=\"vertex.c\" -DLOG_LEVEL=$(VERTEX_DEBUG) $(CFLAGS) \
 	      -include $(VERTEX_MODEL_H) -o $@ $<

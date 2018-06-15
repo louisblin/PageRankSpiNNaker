@@ -1,3 +1,4 @@
+import io
 import logging
 import os
 import sys
@@ -15,16 +16,18 @@ from page_rank.model.python_models.synapse_dynamics.synapse_dynamics_noop \
     import SynapseDynamicsNoOp
 from page_rank.model.tools.fixed_point import FXfamily
 
+
 LOG_LEVEL_PAGE_RANK_INFO = logging.INFO + 1
 RANK = 'v'
 NX_NODE_SIZE = 350
-ITER_BITS = 3  # see c_models/src/neuron/in_messages.h
+ITER_BITS = 1  # see c_models/src/neuron/in_messages.h
 FLOAT_PRECISION = 5
-TOL = 10**(-FLOAT_PRECISION)
+TOL = 10 ** (-FLOAT_PRECISION)
 ANNOTATION = 'Simulated with SpiNNaker_under_version(1!4.0.0-Riptalon)'
+PROVENANCE_LOGGER = 'spinn_front_end_common.interface.abstract_spinnaker_base'
 DEFAULT_SPYNNAKER_PARAMS = {
     # Time interval between each timer tick on SpiNNaker
-    'timestep': .1,   # ms
+    'timestep': .1,  # ms
     # Slow down factor
     # `timestep' ms on machine = `time_scale_factor' * `timestep' in real time
     'time_scale_factor': 10,
@@ -41,6 +44,9 @@ logger = logging.getLogger(__name__)
 # Utility functions
 #
 
+class FailedOnWarningError(RuntimeError):
+    pass
+
 def _log_info(*args, **kwargs):
     logging.log(LOG_LEVEL_PAGE_RANK_INFO, *args, **kwargs)
 
@@ -48,7 +54,8 @@ def _log_info(*args, **kwargs):
 def check_sim_ran(func):
     """Raises an error is the simulation was not ran.
 
-    State variable `self._model' serves as a proxy for determining if .start(...) was called.
+    State variable `self._model' serves as a proxy to determine if .start(...)
+    was called.
 
     :return: None
     """
@@ -56,6 +63,7 @@ def check_sim_ran(func):
         if self._model is None:
             raise RuntimeError('You first need to .start(...) the simulation.')
         return func(self, *args, **kwargs)
+
     return wrapper
 
 
@@ -65,20 +73,23 @@ def check_sim_ran(func):
 
 class PageRankSimulation:
 
-    def __init__(self, run_time, edges, labels=None, parameters=None, damping=.85,
-                 log_level=logging.INFO, pause=False):
+    def __init__(self, run_time, edges, labels=None, parameters=None,
+                 damping=.85, log_level=logging.INFO, pause=False,
+                 fail_on_warning=False):
         self._validate_graph_structure(edges, labels, damping)
 
         # Simulation parameters
-        self._run_time     = run_time
-        self._edges        = edges
-        self._labels       = labels or self._gen_labels(self._edges)
+        self._run_time = run_time
+        self._edges = edges
+        self._labels = labels or self._gen_labels(self._edges)
         self._sim_vertices = self._gen_sim_vertices(self._labels)
-        self._sim_edges    = self._gen_sim_edges(self._edges, self._labels, self._sim_vertices)
-        self._parameters   = DEFAULT_SPYNNAKER_PARAMS
+        self._sim_edges = self._gen_sim_edges(self._edges, self._labels,
+                                              self._sim_vertices)
+        self._parameters = DEFAULT_SPYNNAKER_PARAMS
         self._parameters.update(parameters or {})
-        self._damping      = damping
-        self._pause        = pause
+        self._damping = damping
+        self._pause = pause
+        self._fail_on_warning = fail_on_warning
 
         # Simulation state variables
         self._model = None
@@ -90,8 +101,8 @@ class PageRankSimulation:
         np.set_printoptions(suppress=True, precision=FLOAT_PRECISION)
 
         # logging
-        logging.basicConfig(level=log_level,
-            format='%(asctime)s %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+        logging.basicConfig(level=log_level, datefmt='%Y-%m-%d %H:%M:%S',
+                            format='%(asctime)s %(levelname)s: %(message)s')
         logger.setLevel(log_level)
 
     def __enter__(self):
@@ -101,7 +112,21 @@ class PageRankSimulation:
         if exc_type is None:
             if self._pause:
                 raw_input('Press any key to finish...')
-            p.end()  # fails on sPyNNaker runtime error
+
+            if self._fail_on_warning:
+                with io.BytesIO() as log_capture_string:
+                    log = logging.getLogger(PROVENANCE_LOGGER)
+                    map(log.removeHandler, log.handlers)
+                    log.addHandler(logging.StreamHandler(log_capture_string))
+
+                    p.end()  # fails on sPyNNaker runtime error
+
+                    # Fail on warning
+                    if log_capture_string.getvalue():
+                        raise FailedOnWarningError()
+            else:
+                p.end()  # fails on sPyNNaker runtime error
+
         # else, exception is cascaded if there is one...
 
     #
@@ -111,17 +136,20 @@ class PageRankSimulation:
         # Ensure to duplicate edges
         size_diff = len(edges) - len(set(edges))
         if size_diff != 0:
-            raise ValueError("graph structure error - %d duplicate(s) found." % size_diff)
+            raise ValueError("graph structure error - %d duplicate(s) found." %
+                             size_diff)
 
         # Ensure all nodes connected (no dangling nodes)
         if labels:
             size_diff = len(labels) - len(self._gen_labels(edges))
             if size_diff != 0:
-                raise ValueError("#labels don't match #edges by %d labels." % size_diff)
+                raise ValueError("#labels don't match #edges by %d labels." %
+                                 size_diff)
 
         # Ensure damping factor has a valid range
         if not (0 <= damping < 1):
-            raise ValueError("Damping factor '%.02f' not in valid range [0,1)." % damping)
+            raise ValueError("Damping factor '%.02f' not in valid range [0,1)."
+                             % damping)
 
     @staticmethod
     def _gen_labels(edges):
@@ -147,17 +175,19 @@ class PageRankSimulation:
     def _get_ranks_string(self, ranks, diff_only=False):
         """Pretty prints a table of ranks values
 
-        :param ranks: dict of name-indexed rows of values, or list of a single row of values
+        :param ranks: dict of name-indexed rows of values, or list of a single
+                      row of values
         :return: None
         """
         if diff_only and len(ranks) == 2:
             # Filter out valid ranks
             [(lbl1, row_1), (lbl2, row_2)] = ranks.items()
-            diff_idx = [i for i, (r1, r2) in enumerate(zip(row_1, row_2)) if abs(r1 - r2) >= TOL]
+            diff_idx = [i for i, (r1, r2) in enumerate(zip(row_1, row_2))
+                        if abs(r1 - r2) >= TOL]
             labels = [self._labels[i] for i in diff_idx]
-            row_1  = [row_1[i] for i in diff_idx]
-            row_2  = [row_2[i] for i in diff_idx]
-            # Contruct table
+            row_1 = [row_1[i] for i in diff_idx]
+            row_2 = [row_2[i] for i in diff_idx]
+            # Construct table
             table = PrettyTable([''] + map(self._node_formatter, labels))
             table.add_row([lbl1] + map(self._float_formatter, row_1))
             table.add_row([lbl2] + map(self._float_formatter, row_2))
@@ -188,7 +218,7 @@ class PageRankSimulation:
             Page_Rank(
                 damping_factor=self._get_damping_factor(),
                 damping_sum=self._get_damping_sum(),
-                rank_init=1./n_neurons,
+                rank_init=1. / n_neurons,
                 incoming_edges_count=incoming_edges_count,
                 outgoing_edges_count=outgoing_edges_count
             ), label="page_rank"
@@ -210,8 +240,10 @@ class PageRankSimulation:
         :return: (<np.array> ranks, <int> number of iterations to convergence)
         """
         if self._sim_ranks is None:
-            raw_ranks = self._model.get_data(RANK).segments[0].filter(name=RANK)[0]
-            ranks = np.array([[np.float64(cell/2**17) for cell in row] for row in raw_ranks])
+            raw_ranks = \
+                self._model.get_data(RANK).segments[0].filter(name=RANK)[0]
+            ranks = np.array([[np.float64(cell / 2 ** 17) for cell in row]
+                              for row in raw_ranks])
 
             # Compute convergence
             xlast = ranks[0]
@@ -219,9 +251,10 @@ class PageRankSimulation:
             convergence = len(ranks)
 
             for it, x in enumerate(ranks[1:]):
-                err = sum([abs(x_i - xlast_i) for x_i, xlast_i in zip(x, xlast)])
+                err = sum([abs(x_i - xlast_i)
+                           for x_i, xlast_i in zip(x, xlast)])
                 if err < N * TOL:
-                    convergence = it+1  # since we began at index #1
+                    convergence = it + 1  # since we began at index #1
                     break
                 xlast = x
 
@@ -251,11 +284,11 @@ class PageRankSimulation:
     def _compute_page_rank(self, max_iter=100):
         """Return the PageRank of the nodes in the graph.
 
-        Adapted to return the number of iterations necessary to compute the Page Rank
+        Adapted to return the # of iterations necessary to compute the Page Rank
 
         Source
         ------
-        github.com/networkx/networkx/blob/master/networkx/algorithms/link_analysis/pagerank_alg.py
+        networkx/algorithms/link_analysis/pagerank_alg.py
 
         """
         # Init graph structure
@@ -290,10 +323,12 @@ class PageRankSimulation:
                 for conn_node in W[node]:  # edge: node -> conn_node
                     prev = x[conn_node]
                     # Simulates payload-lossy encoding of the iteration
-                    # See c_models/src/neuron/in_messages.h:in_messages_payload_format
+                    # See c_models/src/neuron/in_messages.h
+                    #   function: in_messages_payload_format
                     x[conn_node] += ((pkt >> ITER_BITS) << ITER_BITS)
                     logger.debug("[idx=%3s] %f[%s] + %f[%s] = %f[%s]" % (
-                        conn_node, prev, self._to_hex(prev), pkt, self._to_hex(pkt), x[conn_node],
+                        conn_node, prev, self._to_hex(prev), pkt,
+                        self._to_hex(pkt), x[conn_node],
                         self._to_hex(x[conn_node])))
 
             # Compute dangling factor
@@ -301,9 +336,12 @@ class PageRankSimulation:
                 for node in x:
                     prev = x[node]
                     x[node] = damping_sum + d * x[node]
-                    logger.debug("[idx=%3s] %f[%s] * %f[%s] + %f[%s] = %f[%s]" % (
-                        node, d, self._to_hex(d), prev, self._to_hex(prev), damping_sum,
-                        self._to_hex(damping_sum), x[node], self._to_hex(x[node])))
+                    logger.debug(
+                        "[idx=%3s] %f[%s] * %f[%s] + %f[%s] = %f[%s]" % (
+                            node, d, self._to_hex(d), prev, self._to_hex(prev),
+                            damping_sum,
+                            self._to_hex(damping_sum), x[node],
+                            self._to_hex(x[node])))
 
             # Check convergence, l1 norm
             err = sum([abs(x[node] - xlast[node]) for node in x])
@@ -316,8 +354,8 @@ class PageRankSimulation:
     def _verify_sim(self, verify, diff_only=False):
         """Verifies simulation results correctness.
 
-        Checks the ranks results from the simulation match those given by a Python implementation of
-        Page Rank in networkx.
+        Checks the ranks results from the simulation match those given by a
+        Python implementation of Page Rank in networkx.
 
         :return: bool, whether the results match
         """
@@ -327,7 +365,8 @@ class PageRankSimulation:
         _log_info("Extracting computed ranks...")
         computed_ranks, it = self._extract_sim_ranks()
         computed_ranks = computed_ranks[-1]
-        msg += "[SpiNNaker] Convergence < 10e-%d in #%d iterations.\n" % (FLOAT_PRECISION, it)
+        msg += "[SpiNNaker] Convergence < 10e-%d in #%d iterations.\n" % (
+        FLOAT_PRECISION, it)
 
         if not verify:
             return True, msg + "Correctness unchecked."
@@ -335,7 +374,8 @@ class PageRankSimulation:
         # Get Page Rank from python implementation
         _log_info("Computing Page Rank...")
         expected_ranks, it = self._compute_page_rank()
-        msg += "[Python PR] Convergence < 10e-%d in #%d iterations.\n" % (FLOAT_PRECISION, it)
+        msg += "[Python PR] Convergence < 10e-%d in #%d iterations.\n" % (
+        FLOAT_PRECISION, it)
 
         # Compare at defined precision
         is_correct = np.allclose(computed_ranks, expected_ranks, atol=TOL)
@@ -366,6 +406,7 @@ class PageRankSimulation:
         :param silence_output: remove output
         :return: bool, correctness of the simulation results
         """
+
         # Setup simulation
         @ConditionalSilencer(not logger.isEnabledFor(logging.INFO))
         def _run():
@@ -397,17 +438,21 @@ class PageRankSimulation:
 
         if show_graph:
             _log_info("Displaying input graph. "
-                      "Check DISPLAY={} if this hangs...".format(os.getenv('DISPLAY')))
+                      "Check DISPLAY={} if this hangs...".format(
+                os.getenv('DISPLAY')))
             # Clear plot
             plt.clf()
 
             # Graph layout
             pos = nx.layout.spring_layout(G)
-            nx.draw_networkx_nodes(G, pos, node_size=NX_NODE_SIZE, node_color='red')
+            nx.draw_networkx_nodes(G, pos, node_size=NX_NODE_SIZE,
+                                   node_color='red')
             nx.draw_networkx_edges(G, pos, arrowstyle='->')
-            nx.draw_networkx_labels(G, pos, font_color='white', font_weight='bold')
+            nx.draw_networkx_labels(G, pos, font_color='white',
+                                    font_weight='bold')
             self_loops = G.nodes_with_selfloops()
-            nx.draw_networkx_nodes(self_loops, pos, node_size=NX_NODE_SIZE, node_color='black')
+            nx.draw_networkx_nodes(self_loops, pos, node_size=NX_NODE_SIZE,
+                                   node_color='black')
 
             # Show graph
             plt.gca().set_axis_off()
@@ -419,9 +464,9 @@ class PageRankSimulation:
     def draw_output_graph(self, show_graph=True):
         """Displays the computed rank over time.
 
-        Note: pausing the simulation before it ends and is unloaded from the SpiNNaker chips allows
-        for inspection of the post-simulation state through `ybug'
-        (see SpiNNakerManchester/spinnaker_tools)
+        Note: pausing the simulation before it ends and is unloaded from the
+              SpiNNaker chips allows for inspection of the post-simulation state
+              through `ybug' (see SpiNNakerManchester/spinnaker_tools)
 
         :param show_graph: whether to display the graph, default is False
         :return: None
@@ -430,13 +475,15 @@ class PageRankSimulation:
 
         if show_graph:
             _log_info("Displaying output graph. "
-                      "Check DISPLAY={} if this hangs...".format(os.getenv('DISPLAY')))
+                      "Check DISPLAY={} if this hangs...".format(
+                os.getenv('DISPLAY')))
             plt.clf()
 
             ranks = ranks.swapaxes(0, 1)
             labels = self._labels or list(range(len(ranks)))
             for lbl, r in zip(labels, ranks):
-                plt.plot(np.round(r, FLOAT_PRECISION), label=self._node_formatter(lbl))
+                plt.plot(np.round(r, FLOAT_PRECISION),
+                         label=self._node_formatter(lbl))
             plt.legend()
             plt.xticks()
             plt.yticks()
@@ -446,6 +493,7 @@ class PageRankSimulation:
             plt.title(ANNOTATION, fontsize=6)
             plt.show()
 
+
 #
 # Utility functions
 #
@@ -453,20 +501,22 @@ class PageRankSimulation:
 
 class ConditionalSilencer(object):
     def __init__(self, condition):
-        self.condition = condition
+        self._condition = condition
 
     def __call__(self, func):
-        if not self.condition:
+        if not self._condition:
             return func  # Return the function unchanged, not decorated.
 
         def wrapper(*args, **kwargs):
-            with self.output_silencer():
+            with output_silencer():
                 return func(*args, **kwargs)
+
         return wrapper
 
-    @contextmanager
-    def output_silencer(self):
-        new_target = open(os.devnull, "w")
+
+@contextmanager
+def output_silencer(file_name=os.devnull):
+    with open(file_name, "w") as new_target:
         old_stdout, sys.stdout = sys.stdout, new_target
         old_stderr, sys.stderr = sys.stderr, new_target
         try:

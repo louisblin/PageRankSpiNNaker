@@ -32,8 +32,7 @@ def run(show_in=False, show_out=False):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description='Simple Page Rank graph with 4 vertices.')
+    parser = argparse.ArgumentParser(description='Simple Page Rank w/ 4 nodes.')
     parser.add_argument('--show-in', action='store_true',
                         help='Display directed graph input.')
     parser.add_argument('--show-out', action='store_true',

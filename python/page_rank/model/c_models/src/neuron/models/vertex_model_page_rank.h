@@ -34,10 +34,12 @@ typedef struct global_neuron_params_t {
 
 } global_neuron_params_t;
 
-void vertex_model_set_global_neuron_params(global_neuron_params_pointer_t params);
+void vertex_model_set_global_neuron_params(global_neuron_params_pointer_t p);
 
-void vertex_model_receive_packet(input_t key, spike_t payload, neuron_pointer_t neuron);
+void vertex_model_receive_packet(input_t key, spike_t payload,
+    neuron_pointer_t neuron);
 
+uint32_t vertex_model_get_incoming_edges(neuron_pointer_t neuron);
 REAL vertex_model_get_rank_as_real(neuron_pointer_t neuron);
 payload_t vertex_model_get_broadcast_rank(neuron_pointer_t neuron);
 

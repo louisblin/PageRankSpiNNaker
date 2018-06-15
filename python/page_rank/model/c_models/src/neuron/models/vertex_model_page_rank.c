@@ -18,8 +18,8 @@ static global_neuron_params_pointer_t global_params;
 #define CHECKPOINT_HAS(N, E)   (N->iter_state & (1 << E))
 
 
-void vertex_model_set_global_neuron_params(global_neuron_params_pointer_t params) {
-    global_params = params;
+void vertex_model_set_global_neuron_params(global_neuron_params_pointer_t p) {
+    global_params = p;
 }
 
 
@@ -28,7 +28,7 @@ inline void _finish(neuron_pointer_t neuron) {
     sark_app_lower();
     CHECKPOINT_SAVE(neuron, FINISHED);
     log_debug("[idx=   ] vertex_model_state_update: iteration completed (%k)",
-        K(neuron->curr_rank_acc));
+              K(neuron->curr_rank_acc));
 }
 
 inline void _has_sent_packet(neuron_pointer_t neuron) {
@@ -36,7 +36,8 @@ inline void _has_sent_packet(neuron_pointer_t neuron) {
     sark_app_raise();
     CHECKPOINT_SAVE(neuron, SENT_PACKET);
 
-    if (!CHECKPOINT_HAS(neuron, FINISHED) && CHECKPOINT_HAS(neuron, RECEIVED_ALL)) {
+    if (!CHECKPOINT_HAS(neuron, FINISHED) &&
+        CHECKPOINT_HAS(neuron, RECEIVED_ALL)) {
         _finish(neuron);
     }
 }
@@ -44,37 +45,50 @@ inline void _has_sent_packet(neuron_pointer_t neuron) {
 inline void _has_received_all(neuron_pointer_t neuron) {
     CHECKPOINT_SAVE(neuron, RECEIVED_ALL);
 
-    if (!CHECKPOINT_HAS(neuron, FINISHED) && CHECKPOINT_HAS(neuron, SENT_PACKET)) {
+    if (!CHECKPOINT_HAS(neuron, FINISHED) &&
+        CHECKPOINT_HAS(neuron, SENT_PACKET)) {
         _finish(neuron);
     }
 }
 
 // Triggered when a packet is received
-void vertex_model_receive_packet(input_t key, spike_t payload, neuron_pointer_t neuron) {
+void vertex_model_receive_packet(input_t key, spike_t payload,
+        neuron_pointer_t neuron) {
 
     // Decode key / payload
-    index_t idx = (index_t) key;
     union payloadDeserializer {
         spike_t asSpikeT;
         UFRACT asFract;
     };
     union payloadDeserializer contrib = { payload };
 
+#if LOG_LEVEL >= LOG_DEBUG
+    index_t idx = (index_t) key;
+
     // User signals a packet has arrived
     UFRACT prev_rank_acc = neuron->curr_rank_acc;
     uint32_t prev_rank_count = neuron->curr_rank_count;
+#else
+    use(key);
+#endif
 
     // Saved
     neuron->curr_rank_acc   += contrib.asFract;
     neuron->curr_rank_count += 1;
 
-    log_debug("[idx=%03u] vertex_model_state_update: %k/%d + %k = %k/%d [exp=%d]", idx,
-        K(prev_rank_acc), prev_rank_count, K(contrib.asFract), K(neuron->curr_rank_acc),
-        neuron->curr_rank_count, neuron->incoming_edges_count);
-
+#if LOG_LEVEL >= LOG_DEBUG
+    log_debug("[idx=%03u] vertex_model_state_update: %k/%d + %k = %k/%d "
+              "[exp=%d]", idx, K(prev_rank_acc), prev_rank_count,
+              K(contrib.asFract), K(neuron->curr_rank_acc),
+              neuron->curr_rank_count, neuron->incoming_edges_count);
+#endif
     if (neuron->curr_rank_count >= neuron->incoming_edges_count) {
         _has_received_all(neuron);
     }
+}
+
+uint32_t vertex_model_get_incoming_edges(neuron_pointer_t neuron) {
+    return neuron->incoming_edges_count;
 }
 
 payload_t vertex_model_get_broadcast_rank(neuron_pointer_t neuron) {
@@ -101,7 +115,8 @@ REAL vertex_model_get_rank_as_real(neuron_pointer_t neuron) {
 }
 
 bool vertex_model_should_send_pkt(neuron_pointer_t neuron) {
-    return !CHECKPOINT_HAS(neuron, FINISHED) && !CHECKPOINT_HAS(neuron, SENT_PACKET);
+    return !CHECKPOINT_HAS(neuron, FINISHED) &&
+           !CHECKPOINT_HAS(neuron, SENT_PACKET);
 }
 
 // Perform operations required to reset the state after a spike
@@ -109,7 +124,8 @@ void vertex_model_will_send_pkt(neuron_pointer_t neuron) {
     if (neuron->incoming_edges_count > 0) {
         _has_sent_packet(neuron);
     } else {
-        // Else, not expected to receive any packets so iteration is finished for the node
+        // Else, not expected to receive any packets so iteration is finished
+        //   for the node
         CHECKPOINT_SAVE(neuron, FINISHED);
     }
 }

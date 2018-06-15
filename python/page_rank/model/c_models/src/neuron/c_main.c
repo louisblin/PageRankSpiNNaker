@@ -14,11 +14,10 @@
  *
  */
 
-//#include "../common/in_spikes.h"
 #include "vertex.h"
 #include "message_dispatching.h"
 #include "message_processing.h"
-#include <neuron/population_table/population_table.h>
+#include "population_table/population_table.h"
 #include <neuron/profile_tags.h>
 
 #include <data_specification.h>
@@ -30,8 +29,7 @@
    magic number*/
 #ifndef APPLICATION_NAME_HASH
 #define APPLICATION_NAME_HASH 0
-#error APPLICATION_NAME_HASH was undefined.  Make sure you define this\
-       constant
+#error APPLICATION_NAME_HASH was undefined.  Make sure you define this constant
 #endif
 
 //! human readable definitions of each region in SDRAM
@@ -44,7 +42,7 @@ typedef enum regions_e {
     SYNAPSE_DYNAMICS_REGION,  // Unused
     RECORDING_REGION,
     PROVENANCE_DATA_REGION,
-    PROFILER_REGION
+    PROFILER_REGION           // Only used during LOG_DEBUG
 } regions_e;
 
 typedef enum extra_provenance_data_region_entries {
@@ -135,10 +133,10 @@ static bool initialise(uint32_t *timer_period) {
 
     // Set up the vertices
     uint32_t n_vertices;
-    uint32_t incoming_spike_buffer_size;
+    uint32_t incoming_message_buffer_length;
     if (!vertex_initialise(
             data_specification_get_region(VERTEX_PARAMS_REGION, address),
-            recording_flags, &n_vertices, &incoming_spike_buffer_size)) {
+            recording_flags, &n_vertices, &incoming_message_buffer_length)) {
         return false;
     }
 
@@ -158,8 +156,9 @@ static bool initialise(uint32_t *timer_period) {
         return false;
     }
 
-    if (!message_processing_initialise(row_max_n_words, MC, SDP_AND_DMA_AND_USER,
-            incoming_spike_buffer_size)) {
+    // Set up message handlers
+    if (!message_processing_initialise(row_max_n_words, MC,
+            SDP_AND_DMA_AND_USER, incoming_message_buffer_length)) {
         return false;
     }
 
@@ -228,8 +227,7 @@ void timer_callback(uint timer_count, uint unused) {
         return;
     }
 
-    // otherwise do synapse and vertex time step updates
-    message_dispatching_do_timestep_update(time);
+    // do synapse and vertex time step updates
     vertex_do_timestep_update(time);
 
     // trigger buffering_out_mechanism
