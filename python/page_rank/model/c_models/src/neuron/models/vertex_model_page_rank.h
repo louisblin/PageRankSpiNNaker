@@ -47,6 +47,7 @@ bool vertex_model_should_send_pkt(neuron_pointer_t neuron);
 void vertex_model_will_send_pkt(neuron_pointer_t neuron);
 
 void vertex_model_iteration_did_finish(neuron_pointer_t neuron);
+void vertex_model_iteration_did_reset(neuron_pointer_t neuron);
 
 
 #endif // _VERTEX_MODEL_PAGE_RANK_H_

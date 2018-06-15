@@ -52,7 +52,7 @@ inline void _has_received_all(neuron_pointer_t neuron) {
 }
 
 // Triggered when a packet is received
-void vertex_model_receive_packet(input_t key, spike_t payload,
+inline void vertex_model_receive_packet(input_t key, spike_t payload,
         neuron_pointer_t neuron) {
 
     // Decode key / payload
@@ -87,11 +87,11 @@ void vertex_model_receive_packet(input_t key, spike_t payload,
     }
 }
 
-uint32_t vertex_model_get_incoming_edges(neuron_pointer_t neuron) {
+inline uint32_t vertex_model_get_incoming_edges(neuron_pointer_t neuron) {
     return neuron->incoming_edges_count;
 }
 
-payload_t vertex_model_get_broadcast_rank(neuron_pointer_t neuron) {
+inline payload_t vertex_model_get_broadcast_rank(neuron_pointer_t neuron) {
     union payloadSerializer {
         UFRACT asFract;
         payload_t asPayloadT;
@@ -105,7 +105,7 @@ payload_t vertex_model_get_broadcast_rank(neuron_pointer_t neuron) {
     return rank.asPayloadT;
 }
 
-REAL vertex_model_get_rank_as_real(neuron_pointer_t neuron) {
+inline REAL vertex_model_get_rank_as_real(neuron_pointer_t neuron) {
     union payloadSerializer {
         UFRACT asFract;
         REAL asReal;
@@ -114,13 +114,13 @@ REAL vertex_model_get_rank_as_real(neuron_pointer_t neuron) {
     return rank.asReal;
 }
 
-bool vertex_model_should_send_pkt(neuron_pointer_t neuron) {
+inline bool vertex_model_should_send_pkt(neuron_pointer_t neuron) {
     return !CHECKPOINT_HAS(neuron, FINISHED) &&
            !CHECKPOINT_HAS(neuron, SENT_PACKET);
 }
 
 // Perform operations required to reset the state after a spike
-void vertex_model_will_send_pkt(neuron_pointer_t neuron) {
+inline void vertex_model_will_send_pkt(neuron_pointer_t neuron) {
     if (neuron->incoming_edges_count > 0) {
         _has_sent_packet(neuron);
     } else {
@@ -133,6 +133,10 @@ void vertex_model_will_send_pkt(neuron_pointer_t neuron) {
 void vertex_model_iteration_did_finish(neuron_pointer_t neuron) {
     neuron->rank = global_params->damping_sum
                  + global_params->damping_factor * neuron->curr_rank_acc;
+    vertex_model_iteration_did_reset(neuron);
+}
+
+inline void vertex_model_iteration_did_reset(neuron_pointer_t neuron) {
     neuron->curr_rank_acc = 0;
     neuron->curr_rank_count = 0;
     CHECKPOINT_RESET(neuron);

@@ -32,6 +32,7 @@ def _mk_sim_run(edges=None, labels=None, verify=None, pause=None,
             tsf_min = tsf
 
     print('RESULT: time_scale_factor={}'.format(tsf_max))
+    return tsf_max
 
 
 if __name__ == '__main__':

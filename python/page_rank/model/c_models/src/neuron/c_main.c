@@ -133,10 +133,9 @@ static bool initialise(uint32_t *timer_period) {
 
     // Set up the vertices
     uint32_t n_vertices;
-    uint32_t incoming_message_buffer_length;
     if (!vertex_initialise(
             data_specification_get_region(VERTEX_PARAMS_REGION, address),
-            recording_flags, &n_vertices, &incoming_message_buffer_length)) {
+            recording_flags, &n_vertices)) {
         return false;
     }
 
@@ -158,7 +157,7 @@ static bool initialise(uint32_t *timer_period) {
 
     // Set up message handlers
     if (!message_processing_initialise(row_max_n_words, MC,
-            SDP_AND_DMA_AND_USER, incoming_message_buffer_length)) {
+            SDP_AND_DMA_AND_USER)) {
         return false;
     }
 

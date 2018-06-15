@@ -4,6 +4,7 @@
 #include <common/neuron-typedefs.h>
 #include <circular_buffer.h>
 #include <debug.h>
+#include <sark.h>
 
 
 // IMPORTANT: needs to match ITER_BITS in python_models/tools/simulation.py
@@ -15,7 +16,7 @@
 // Note:
 //   * encodes ITER_BITS^2 relative iterations steps
 //   * no checking if a packet arrives over ITER_BITS^2 iterations in advance
-#define ITER_BITS       1
+#define ITER_BITS       2
 #define ITER_MASK       ((1 << ITER_BITS) - 1)
 
 // Number of iterations to buffer
@@ -92,34 +93,36 @@ static inline uint32_t in_messages_increment_iteration_number() {
 //    underflows: a counter for the number of times the buffer underflows
 //
 // If underflows is ever non-zero, then there is a problem with this code.
-static inline bool in_messages_initialize_spike_buffer(uint32_t size) {
-    // Size account for number of messages, but we store two elements (key and
-    //   payload) per message; hence 2x
-    uint32_t effective_size = 2 * size;
+static inline bool in_messages_initialize_spike_buffer() {
+
+    // Find the biggest chunck we can allocate
+    uint32_t max_size = 1 << 15; // 32K, size of DTCM
+    while (max_size > 0) {
+        uint32_t* buff = (uint32_t*) sark_alloc(1, max_size * sizeof(uint32_t));
+        if (buff != 0) {
+            sark_free(buff);
+            break;
+        } else {
+            max_size >>= 1;
+        }
+    }
+
+    log_info("Available DTCM: %d bytes", max_size);
+
+    uint32_t buffer_size = max_size >> ITER_BITS;
 
     // Allocate space for N_ITER_BUFFERS buffers, to buffer packets that arrive
     //   early by up to N_ITER_BUFFERS iterations.
-    uint32_t min_size  = 2 * sizeof(spike_t);
-    uint32_t last_size = effective_size;
-
     for (uint32_t i = 0; i < N_ITER_BUFFERS; i++) {
-        while (true) {
-            buffers[i] = circular_buffer_initialize(last_size);
+        buffers[i] = circular_buffer_initialize(buffer_size);
 
-            if (buffers[i] != 0) {
-                log_info("Successfully allocated %u/%u bytes for buffer #%02d: "
-                         "0x%08x", last_size, effective_size, i, buffers[i]);
-                break; // Leave while loop
-            // If we can still allocate a valid buffer but halving its size
-            } else if ((last_size >> 1) >= min_size) {
-                last_size >>= 1;
-                log_error("Unable to allocate buffer #%02d, trying with %u "
-                          "bytes", i, last_size);
-            } else {
-                log_error("Unable to allocate %u bytes for buffer #%02d",
-                          last_size, i);
-                return false;
-            }
+        if (buffers[i] != 0) {
+            log_info("Successfully allocated %u bytes for buffer #%02d: "
+                     "0x%08x", buffer_size, i, buffers[i]);
+        } else {
+            log_error("Unable to allocate %u bytes for buffer #%02d",
+                      buffer_size, i);
+            return false;
         }
     }
 
@@ -154,6 +157,16 @@ static inline bool in_messages_add_key_payload(spike_t key, spike_t _payload) {
                   "in_messages items to be addable by pair (%03d[0x%08x] = "
                   "%k[0x%08x]) for it=%u", curr_iter, (0xff & key), key,
                   payload, payload, iter_no);
+
+        // TODO: only remove the key from buffer
+        // Purge current buffer, should already be empty
+        uint32_t remaining = circular_buffer_size(buffer);
+        if (remaining > 0) {
+            log_warning("Forced to drop #%u messages to reach consistency",
+                        remaining);
+        }
+        circular_buffer_clear(buffer);
+
         return false;
     }
 

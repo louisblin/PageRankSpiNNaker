@@ -20,7 +20,7 @@ from page_rank.model.tools.fixed_point import FXfamily
 LOG_LEVEL_PAGE_RANK_INFO = logging.INFO + 1
 RANK = 'v'
 NX_NODE_SIZE = 350
-ITER_BITS = 1  # see c_models/src/neuron/in_messages.h
+ITER_BITS = 2  # see c_models/src/neuron/in_messages.h
 FLOAT_PRECISION = 5
 TOL = 10 ** (-FLOAT_PRECISION)
 ANNOTATION = 'Simulated with SpiNNaker_under_version(1!4.0.0-Riptalon)'
@@ -31,7 +31,7 @@ DEFAULT_SPYNNAKER_PARAMS = {
     # Slow down factor
     # `timestep' ms on machine = `time_scale_factor' * `timestep' in real time
     'time_scale_factor': 10,
-    # Range of random delays between synapse transmission
+    # Range of random back off delays between packet sent
     # set to minimum, i.e. a timestep, as we don't want to wait
     'min_delay': .1,  # ms
     'max_delay': .1,  # ms
@@ -172,7 +172,7 @@ class PageRankSimulation:
     def _float_formatter(number):
         return ("%.{}f".format(FLOAT_PRECISION)) % number
 
-    def _get_ranks_string(self, ranks, diff_only=False):
+    def _get_ranks_string(self, ranks, diff_only=False, diff_max=50):
         """Pretty prints a table of ranks values
 
         :param ranks: dict of name-indexed rows of values, or list of a single
@@ -187,6 +187,12 @@ class PageRankSimulation:
             labels = [self._labels[i] for i in diff_idx]
             row_1 = [row_1[i] for i in diff_idx]
             row_2 = [row_2[i] for i in diff_idx]
+            if len(diff_idx) > diff_max:
+                compacted_label = "{}..{}".format(labels[diff_max], labels[-1])
+                labels = labels[:diff_max] + [compacted_label]
+                row_1  = row_1[:diff_max]  + [0]
+                row_2  = row_2[:diff_max]  + [0]
+
             # Construct table
             table = PrettyTable([''] + map(self._node_formatter, labels))
             table.add_row([lbl1] + map(self._float_formatter, row_1))
@@ -351,7 +357,7 @@ class PageRankSimulation:
                 return x, iter + 1  # iter t+1 happens at the end of time t
         raise nx.PowerIterationFailedConvergence(max_iter)
 
-    def _verify_sim(self, verify, diff_only=False):
+    def _verify_sim(self, verify, diff_only=False, diff_max=50):
         """Verifies simulation results correctness.
 
         Checks the ranks results from the simulation match those given by a
@@ -391,7 +397,7 @@ class PageRankSimulation:
                     self._get_ranks_string({
                         'Computed': computed_ranks,
                         'Expected': expected_ranks
-                    }, diff_only))
+                    }, diff_only, diff_max))
 
         return is_correct, msg
 

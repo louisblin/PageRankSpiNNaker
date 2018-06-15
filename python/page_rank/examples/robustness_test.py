@@ -5,7 +5,7 @@ import sys
 import page_rank.model.tools.simulation as sim
 from page_rank.examples.utils import runner
 
-N_ITER = 15
+N_ITER = 25
 RUN_TIME = N_ITER * .1  # multiplied by timestep in ms
 PARAMETERS = {
     # Experimental results of good values
@@ -14,9 +14,9 @@ PARAMETERS = {
     # |V|=1600 |E|=2400  : ts=1. tsf=150
     # |V|=3200 |E|=4800  : ts=?  tsf=?
     # 210 for 1 core / 65K
-    # 235 for 15 cores / 20,000
+    # 235 for 15 cores / 50,000
     # 400 for 30 cores / 20,000
-    'time_scale_factor': 10,
+    'time_scale_factor': 400,
 }
 
 

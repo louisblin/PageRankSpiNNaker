@@ -26,12 +26,10 @@
 //! \param[in] recording_flags_param the recordings parameters
 //!            (contains which regions are active and how big they are)
 //! \param[out] n_vertices_value The number of vertices this model is to emulate
-//! \param[out] incoming_message_buffer_length The number of messages to support
-//!             in the incoming message buffer
 //! \return boolean which is True is the translation was successful
 //!         otherwise False
 bool vertex_initialise(address_t address, uint32_t recording_flags,
-    uint32_t *n_vertices_value, uint32_t *incoming_message_buffer_length);
+    uint32_t *n_vertices_value);
 
 //! \brief executes all the updates to neural parameters when a given timer
 //!        period has occurred.

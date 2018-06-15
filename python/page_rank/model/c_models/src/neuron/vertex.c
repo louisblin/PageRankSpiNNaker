@@ -46,7 +46,12 @@ static uint32_t recording_flags;
 static timed_state_t *ranks;
 uint32_t ranks_size;
 
-#ifdef RANDOM_BACK_OFF
+//! Keep track of communication deadlocks to timeout
+static uint32_t last_sema_value;
+static uint32_t last_progressing_iteration_age;
+const uint32_t TIMEOUT_AFTER_N_TIME_STEP = 3;
+
+#ifdef BACK_OFF_ENABLED
 //! The number of clock ticks to back off before starting the timer, in an
 //!   attempt to avoid overloading the network
 static uint32_t random_back_off;
@@ -119,18 +124,6 @@ bool _vertex_load_neuron_parameters(address_t address){
     return true;
 }
 
-//! \brief computes the sum of all expected incoming messages per iteration.
-uint32_t _get_incoming_messages_count() {
-    uint32_t count = 0;
-
-    for (index_t vertex_idx = 0; vertex_idx < n_vertices; vertex_idx++) {
-        neuron_pointer_t vertex = &vertex_array[vertex_idx];
-        count += vertex_model_get_incoming_edges(vertex);
-    }
-
-    return count;
-}
-
 //! \brief interface for reloading vertex parameters as needed
 //! \param[in] address: the address where the vertex parameters are stored in
 //!            SDRAM
@@ -153,14 +146,12 @@ bool vertex_reload_neuron_parameters(address_t address) {
 //! \param[in] recording_flags_param the recordings parameters (contains which
 //!            regions are active and how big they are)
 //! \param[out] n_vertices_value The number of vertices this model is to emulate
-//! \param[out] incoming_message_buffer_length The number of messages to support
-//!             in the incoming message buffer
 //! \return true if the initialisation was successful, otherwise false
 bool vertex_initialise(address_t address, uint32_t recording_flags_param,
-        uint32_t *n_vertices_value, uint32_t *incoming_message_buffer_length) {
+        uint32_t *n_vertices_value) {
     log_info("vertex_initialise: starting");
 
-#ifdef RANDOM_BACK_OFF
+#ifdef BACK_OFF_ENABLED
     random_back_off     = address[RANDOM_BACK_OFF];
     time_between_spikes = address[TIME_BETWEEN_SPIKES] * sv->cpu_clk;
     log_info("\t back off = %u, time between spikes %u", random_back_off,
@@ -209,13 +200,12 @@ bool vertex_initialise(address_t address, uint32_t recording_flags_param,
         return false;
     }
 
-    // vertex_array
-    // Compute the size of the incoming message buffer to use
-    *incoming_message_buffer_length = _get_incoming_messages_count();
+    // Init communication deadlock logic
+    last_sema_value = -1;
+    last_progressing_iteration_age = 0;
 
     // log message for debug purposes
-    log_info("\t vertices = %u, message buffer length = %u, params size = %u",
-        n_vertices, *incoming_message_buffer_length, sizeof(neuron_t));
+    log_info("\tvertices = %u, params size = %u", n_vertices, sizeof(neuron_t));
 
 #ifdef OUT_SPIKES_ENABLED
     // Set up the out spikes array
@@ -259,37 +249,63 @@ void vertex_do_timestep_update(timer_t time) {
 
     log_info("\n\n===== TIME STEP = %u =====", time);
 
-    // Disable interrupts to avoid possible concurrent access
-    uint cpsr = spin1_int_disable();
+    // Keep track of progress to
+    uint32_t curr_sema_value = sark_app_sema();
+    if (0 < curr_sema_value && curr_sema_value == last_sema_value) {
+        last_progressing_iteration_age++;
+    } else {
+        last_progressing_iteration_age = 0;
+    }
+    last_sema_value = curr_sema_value;
+
+    bool should_timeout =
+        last_progressing_iteration_age >= TIMEOUT_AFTER_N_TIME_STEP;
 
     // Check if all vertices have completed their iteration
     // Note: important to skip first iteration otherwise ranks will be erased
-    if (0 < time && sark_app_sema() == 0) {
+    if (0 < time && (curr_sema_value == 0 || should_timeout)) {
+
+        // Disable interrupts to avoid possible concurrent access
+        uint cpsr = spin1_int_disable();
+
         // Buffer for incoming packets
         uint32_t iter_no = message_processing_increment_iteration_number();
 
-        log_info("=> Iteration #%u will start.", iter_no);
+        // Apply _reset or _finish function depending on timeout
+        void (*vertex_model_fn_ptr)(neuron_pointer_t);
 
-        // vertex model
+        if (should_timeout) {
+            log_warning("=> RESETTING to start iteration #%u.", iter_no);
+            vertex_model_fn_ptr = vertex_model_iteration_did_reset;
+
+            // TODO: switch non-app sema to be able to clear it in O(1)
+            while (curr_sema_value-- > 0) {
+                sark_app_lower();
+            }
+        } else {
+            log_info("=> Iteration #%u will start.", iter_no);
+            vertex_model_fn_ptr = vertex_model_iteration_did_finish;
+        }
+
+        // Vertex model
         for (index_t vertex_idx = 0; vertex_idx < n_vertices; vertex_idx++) {
             neuron_pointer_t vertex = &vertex_array[vertex_idx];
-            vertex_model_iteration_did_finish(vertex);
+            (*vertex_model_fn_ptr)(vertex);
         }
+
+        // Re-enable interrupts
+        spin1_mode_restore(cpsr);
 
         _print_vertices();
     } else {
         log_info("=> Iteration ongoing (%d).", sark_app_sema());
     }
 
-    // Re-enable interrupts
-    spin1_mode_restore(cpsr);
 
 #ifdef BACK_OFF_ENABLED
     // Wait a random number of clock cycles
     uint32_t random_back_off_time = tc[T1_COUNT] - random_back_off;
     while (tc[T1_COUNT] > random_back_off_time) {
-        log_warning("%16s[t=%04u|#---] waiting %d > %d...", "", time,
-                    tc[T1_COUNT], random_back_off_time);
         // Do Nothing
     }
 
@@ -332,8 +348,6 @@ void vertex_do_timestep_update(timer_t time) {
 #ifdef BACK_OFF_ENABLED
                 // Wait until the expected time to send
                 while (tc[T1_COUNT] > expected_time) {
-                    log_warning("%16s[t=%04u|#%03d] waiting %d > %d...", "",
-                                time, vertex_idx, tc[T1_COUNT], expected_time);
                     // Do Nothing
                 }
                 expected_time -= time_between_spikes;
@@ -358,7 +372,7 @@ void vertex_do_timestep_update(timer_t time) {
     }
 
     // Disable interrupts to avoid possible concurrent access
-    cpsr = spin1_int_disable();
+    uint cpsr = spin1_int_disable();
 
     // record vertex state (membrane potential) if needed
     if (recording_is_channel_enabled(recording_flags, RANK_RECORDING_CHANNEL)) {
