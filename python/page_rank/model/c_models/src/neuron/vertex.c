@@ -5,7 +5,7 @@
  */
 
 #include "vertex.h"
-#include "message_processing.h"
+#include "message/message_processing.h"
 #include "models/vertex_model_page_rank.h"
 #include <common/out_spikes.h>
 #include <common/maths-util.h>

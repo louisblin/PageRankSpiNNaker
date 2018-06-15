@@ -55,8 +55,8 @@ VERTEX_MODEL_O = $(call build_dir, $(VERTEX_MODEL))
 VERTEX_O = $(call build_dir, $(VERTEX_C))
 
 SOURCES = $(EXTRA_SRC_DIR)/neuron/c_main.c \
-          $(EXTRA_SRC_DIR)/neuron/message_dispatching.c \
-          $(EXTRA_SRC_DIR)/neuron/message_processing.c \
+          $(EXTRA_SRC_DIR)/neuron/message/message_dispatching.c \
+          $(EXTRA_SRC_DIR)/neuron/message/message_processing.c \
           $(EXTRA_SRC_DIR)/neuron/population_table/population_table_binary_search_impl.c \
           $(EXTRA_SRC_DIR)/neuron/vertex.c \
 	      $(VERTEX_MODEL) \
@@ -65,8 +65,8 @@ SOURCES = $(EXTRA_SRC_DIR)/neuron/c_main.c \
           $(OTHER_SOURCES)
 
 SYNAPSE_TYPE_SOURCES += $(EXTRA_SRC_DIR)/neuron/c_main.c \
-                        $(EXTRA_SRC_DIR)/neuron/message_dispatching.c \
-                        $(EXTRA_SRC_DIR)/neuron/message_processing.c \
+                        $(EXTRA_SRC_DIR)/neuron/message/message_dispatching.c \
+                        $(EXTRA_SRC_DIR)/neuron/message/message_processing.c \
                         $(EXTRA_SRC_DIR)/neuron/population_table/population_table_binary_search_impl.c \
                         $(SOURCE_DIR)/neuron/plasticity/synapse_dynamics_static_impl.c
 

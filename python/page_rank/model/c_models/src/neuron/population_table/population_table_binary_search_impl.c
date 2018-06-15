@@ -1,5 +1,5 @@
 #include "population_table.h"
-#include "../synapse_row.h"
+#include "../message/synapse_row.h"
 #include <debug.h>
 #include <string.h>
 

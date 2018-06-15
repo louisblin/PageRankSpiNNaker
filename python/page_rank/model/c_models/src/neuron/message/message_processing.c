@@ -1,8 +1,8 @@
 #include "message_processing.h"
 #include "message_dispatching.h"
 #include "in_messages.h"
-#include "models/vertex_model_page_rank.h"
-#include "population_table/population_table.h"
+#include "../models/vertex_model_page_rank.h"
+#include "../population_table/population_table.h"
 #include <simulation.h>
 #include <spin1_api.h>
 #include <debug.h>

@@ -1,5 +1,5 @@
 #include "message_dispatching.h"
-#include "vertex.h"
+#include "../vertex.h"
 #include "synapse_row.h"
 #include <debug.h>
 #include <spin1_api.h>

@@ -15,8 +15,8 @@
  */
 
 #include "vertex.h"
-#include "message_dispatching.h"
-#include "message_processing.h"
+#include "message/message_dispatching.h"
+#include "message/message_processing.h"
 #include "population_table/population_table.h"
 #include <neuron/profile_tags.h>
 
