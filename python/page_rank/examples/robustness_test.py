@@ -1,6 +1,7 @@
 import argparse
 import random
 import sys
+import tqdm
 
 import page_rank.model.tools.simulation as sim
 from page_rank.examples.utils import runner
@@ -31,8 +32,10 @@ def _mk_sim_run(edges=None, labels=None, verify=None, pause=None,
 
 
 def run(runs=None, **kwargs):
-    errors = runner(_mk_sim_run, runs, **kwargs)
-    print('Finished robustness test with %d/%d error(s).' % (errors, runs))
+    results = [runner(_mk_sim_run, runs, **kwargs)
+               for _ in tqdm.tqdm(range(runs), total=runs)]
+    correct = sum(map(int, results))
+    print('Finished robustness test with %d/%d passed.' % (correct, runs))
 
 
 if __name__ == '__main__':
@@ -50,7 +53,7 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--show-out', action='store_true',
                         help='Display ranks curves output')
     parser.add_argument('-l', '--log-level', type=int,
-                        default=sim.LOG_LEVEL_PAGE_RANK_INFO,
+                        default=sim.LOG_HIGHLIGHTS,
                         help='The integer log level to set')
 
     # Recreate the same graphs for the same arguments

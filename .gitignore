@@ -3,3 +3,6 @@
 
 # Virtualenv
 venv
+
+# Generated files
+plots

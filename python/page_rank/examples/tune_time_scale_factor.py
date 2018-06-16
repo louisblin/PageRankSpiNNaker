@@ -1,16 +1,15 @@
 import argparse
 import random
-import sys
 
 import page_rank.model.tools.simulation as sim
 from page_rank.examples.utils import runner
 
 N_ITER = 25
-RUN_TIME = N_ITER * .1  # multiplied by timestep in ms
+RUN_TIME = N_ITER * .1  # multiplied by time step in ms
 
 
-def _mk_sim_run(edges=None, labels=None, verify=None, pause=None,
-                tsf_min=None, tsf_res=None, tsf_max=None):
+def sim_worker(edges=None, labels=None, verify=None, pause=None,
+               tsf_min=None, tsf_res=None, tsf_max=None, **kwargs):
     tsf = None
 
     while abs(tsf_max - tsf_min) > tsf_res:
@@ -22,8 +21,8 @@ def _mk_sim_run(edges=None, labels=None, verify=None, pause=None,
             params = dict(time_scale_factor=tsf)
             with sim.PageRankSimulation(
                     RUN_TIME, edges, labels, params, fail_on_warning=True,
-                    pause=pause, log_level=sim.LOG_LEVEL_PAGE_RANK_INFO) as s:
-                s.run(verify=verify, diff_only=True)
+                    pause=pause, log_level=sim.LOG_HIGHLIGHTS) as s:
+                s.run(verify=verify, diff_only=True, **kwargs)
 
             # No error, reduce tsf
             tsf_max = tsf
@@ -54,4 +53,4 @@ if __name__ == '__main__':
 
     # Recreate the same graphs for the same arguments
     random.seed(42)
-    sys.exit(runner(_mk_sim_run, **vars(parser.parse_args())))
+    runner(sim_worker, **vars(parser.parse_args()))

@@ -1,11 +1,15 @@
-import argparse
+import os
 import random
-import sys
+import re
 
 import networkx as nx
 import tqdm
+import matplotlib.pyplot as plt
+import numpy as np
 
-import page_rank.model.tools.simulation as sim
+from spinn_front_end_common.utilities import globals_variables
+from spinn_front_end_common.interface.interface_functions \
+    import RouterProvenanceGatherer
 
 
 def _mk_label(n):
@@ -42,6 +46,33 @@ def _mk_edges(node_count, edge_count):
             for src, tgt in tqdm.tqdm(edges, desc="Formatting edges")]
 
 
+def mk_path(path):
+    path = os.path.realpath(os.path.join(os.path.dirname(__file__), path))
+
+    if re.match('.*\..*', path):
+        dir_path = os.path.dirname(path)
+    else:
+        dir_path = path
+
+    build_stack = []
+    while not os.path.exists(dir_path):
+        build_stack.append(dir_path)
+        dir_path = os.path.dirname(dir_path)
+
+    for d in reversed(build_stack):
+        os.makedirs(d)
+
+    return path
+
+
+def save_plot_data(path, raw_data):
+    save_dir = mk_path(path)
+    i = max(map(int, [f[4:-4] for f in os.listdir(save_dir)])) + 1
+    np.savetxt(os.path.join(save_dir, 'run-%d.csv' % i), raw_data, delimiter=',')
+    plt.savefig(os.path.join(save_dir, 'run-%d.png' % i))
+    print('\n>>> Results saved at %s/run-%d.*' % (save_dir, i))
+
+
 def mk_graph(node_count, edge_count):
     labels = map(_mk_label, list(range(node_count)))
     edges = _mk_edges(node_count, edge_count)
@@ -49,16 +80,36 @@ def mk_graph(node_count, edge_count):
     return edges, labels
 
 
-def runner(fn, runs=1, node_count=None, edge_count=None, **kwargs):
-    errors = 0
-    for _ in tqdm.tqdm(range(runs), total=runs):
-        while True:
-            edges, labels = mk_graph(node_count, edge_count)
-            try:
-                is_correct = fn(edges=edges, labels=labels, **kwargs)
-                errors += 0 if is_correct else 1
-                break
-            # Redo iteration because generated graph did not converge
-            except nx.PowerIterationFailedConvergence:
-                print('Skipping nx.PowerIterationFailedConvergence graph...')
-    return errors
+def runner(fn, node_count=None, edge_count=None, **kwargs):
+    while True:
+        edges, labels = mk_graph(node_count, edge_count)
+        try:
+            return fn(edges=edges, labels=labels, **kwargs)
+        # Redo iteration because generated graph did not converge
+        except nx.PowerIterationFailedConvergence:
+            print('Skipping nx.PowerIterationFailedConvergence graph...')
+
+
+def extract_router_provenance(collect_names=None):
+    if collect_names is None:
+        collect_names = [
+            'total_multi_cast_sent_packets',
+            'total_created_packets',
+            'total_dropped_packets',
+            'total_missed_dropped_packets',
+            'total_lost_dropped_packets'
+        ]
+
+    m = globals_variables.get_simulator()
+
+    router_provenance = RouterProvenanceGatherer()
+    router_prov = router_provenance(m._txrx, m._machine, m._router_tables, True)
+
+    res = dict().fromkeys(collect_names, 0)
+    for item in router_prov:
+        print('{} => {}'.format(item.names, item.value))
+        name = item.names[-1]
+        if name in collect_names:
+            res[name] += int(item.value)
+
+    return res

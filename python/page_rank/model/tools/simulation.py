@@ -17,7 +17,7 @@ from page_rank.model.python_models.synapse_dynamics.synapse_dynamics_noop \
 from page_rank.model.tools.fixed_point import FXfamily
 
 
-LOG_LEVEL_PAGE_RANK_INFO = logging.INFO + 1
+LOG_HIGHLIGHTS = logging.INFO + 1
 RANK = 'v'
 NX_NODE_SIZE = 350
 ITER_BITS = 2  # see c_models/src/neuron/in_messages.h
@@ -48,7 +48,7 @@ class FailedOnWarningError(RuntimeError):
     pass
 
 def _log_info(*args, **kwargs):
-    logging.log(LOG_LEVEL_PAGE_RANK_INFO, *args, **kwargs)
+    logging.log(LOG_HIGHLIGHTS, *args, **kwargs)
 
 
 def check_sim_ran(func):
@@ -205,7 +205,7 @@ class PageRankSimulation:
 
         return table.get_string()
 
-    def _create_page_rank_model(self):
+    def _create_page_rank_model(self, atoms_per_core):
         """Maps the graph to sPyNNaker.
 
         :return: p.Population, the neural model to compute Page Rank
@@ -227,8 +227,11 @@ class PageRankSimulation:
                 rank_init=1. / n_neurons,
                 incoming_edges_count=incoming_edges_count,
                 outgoing_edges_count=outgoing_edges_count
-            ), label="page_rank"
-        )
+            ),
+            label="page_rank")
+
+        if atoms_per_core:
+            pop._vertex.set_max_atoms_per_core(atoms_per_core)
 
         # Edges
         p.Projection(
@@ -287,7 +290,78 @@ class PageRankSimulation:
         # Ensures float is can be losslessly encoded in fixed-point
         return float(self._to_fp((1. - self._damping) / len(self._labels)))
 
-    def _compute_page_rank(self, max_iter=100):
+    def _verify_sim(self, verify, diff_only=False, diff_max=50):
+        """Verifies simulation results correctness.
+
+        Checks the ranks results from the simulation match those given by a
+        Python implementation of Page Rank in networkx.
+
+        :return: bool, whether the results match
+        """
+        msg = "\n"
+
+        # Get last row of the ranks computed in the simulation
+        _log_info("Extracting computed ranks...")
+        computed_ranks, it = self._extract_sim_ranks()
+        computed_ranks = computed_ranks[-1]
+        msg += "[SpiNNaker] Convergence < 10e-%d in #%d iterations.\n" % (
+            FLOAT_PRECISION, it)
+
+        if not verify:
+            return True, msg + "Correctness unchecked."
+
+        # Get Page Rank from python implementation
+        _log_info("Computing Page Rank...")
+        expected_ranks, it = self.compute_page_rank()
+        msg += "[Python PR] Convergence < 10e-%d in #%d iterations.\n" % (
+            FLOAT_PRECISION, it)
+
+        # Compare at defined precision
+        is_correct = np.allclose(computed_ranks, expected_ranks, atol=TOL)
+
+        if is_correct:
+            msg += "CORRECT Page Rank results.\n"
+            if not diff_only:
+                msg += self._get_ranks_string({
+                    'Computed': computed_ranks
+                })
+        else:
+            msg += ("INCORRECT Page Rank results.\n" +
+                    self._get_ranks_string({
+                        'Computed': computed_ranks,
+                        'Expected': expected_ranks
+                    }, diff_only, diff_max))
+
+        return is_correct, msg
+
+    #
+    # Exposed functions
+    #
+
+    def run(self, verify=False, atoms_per_core=None, **kwargs):
+        """Runs the simulation.
+
+        :param verify: check the results with a Page Rank python implementation.
+        :param silence_output: remove output
+        :return: bool, correctness of the simulation results
+        """
+
+        # Setup simulation
+        @ConditionalSilencer(not logger.isEnabledFor(logging.INFO))
+        def _run():
+            p.setup(**self._parameters)
+
+            self._model = self._create_page_rank_model(atoms_per_core)
+            self._model.record([RANK])
+
+            p.run(self._run_time)
+            return self._verify_sim(verify, **kwargs)
+
+        is_correct, msg = _run()
+        _log_info(msg)
+        return is_correct
+
+    def compute_page_rank(self, max_iter=100, tol=TOL):
         """Return the PageRank of the nodes in the graph.
 
         Adapted to return the # of iterations necessary to compute the Page Rank
@@ -307,7 +381,7 @@ class PageRankSimulation:
 
         # Init fixed-point constants
         d = self._to_fp(self._get_damping_factor())
-        tol = self._to_fp(TOL)
+        tol = self._to_fp(tol)
         ZERO = self._to_fp(0)
         ONE = self._to_fp(1.)
         N = self._to_fp(N)
@@ -356,77 +430,6 @@ class PageRankSimulation:
                     x = np.array([np.float64(x[v]) for v in self._labels])
                 return x, iter + 1  # iter t+1 happens at the end of time t
         raise nx.PowerIterationFailedConvergence(max_iter)
-
-    def _verify_sim(self, verify, diff_only=False, diff_max=50):
-        """Verifies simulation results correctness.
-
-        Checks the ranks results from the simulation match those given by a
-        Python implementation of Page Rank in networkx.
-
-        :return: bool, whether the results match
-        """
-        msg = "\n"
-
-        # Get last row of the ranks computed in the simulation
-        _log_info("Extracting computed ranks...")
-        computed_ranks, it = self._extract_sim_ranks()
-        computed_ranks = computed_ranks[-1]
-        msg += "[SpiNNaker] Convergence < 10e-%d in #%d iterations.\n" % (
-        FLOAT_PRECISION, it)
-
-        if not verify:
-            return True, msg + "Correctness unchecked."
-
-        # Get Page Rank from python implementation
-        _log_info("Computing Page Rank...")
-        expected_ranks, it = self._compute_page_rank()
-        msg += "[Python PR] Convergence < 10e-%d in #%d iterations.\n" % (
-        FLOAT_PRECISION, it)
-
-        # Compare at defined precision
-        is_correct = np.allclose(computed_ranks, expected_ranks, atol=TOL)
-
-        if is_correct:
-            msg += "CORRECT Page Rank results.\n"
-            if not diff_only:
-                msg += self._get_ranks_string({
-                    'Computed': computed_ranks
-                })
-        else:
-            msg += ("INCORRECT Page Rank results.\n" +
-                    self._get_ranks_string({
-                        'Computed': computed_ranks,
-                        'Expected': expected_ranks
-                    }, diff_only, diff_max))
-
-        return is_correct, msg
-
-    #
-    # Exposed functions
-    #
-
-    def run(self, verify=False, **kwargs):
-        """Runs the simulation.
-
-        :param verify: check the results with a Page Rank python implementation.
-        :param silence_output: remove output
-        :return: bool, correctness of the simulation results
-        """
-
-        # Setup simulation
-        @ConditionalSilencer(not logger.isEnabledFor(logging.INFO))
-        def _run():
-            p.setup(**self._parameters)
-
-            self._model = self._create_page_rank_model()
-            self._model.record([RANK])
-
-            p.run(self._run_time)
-            return self._verify_sim(verify, **kwargs)
-
-        is_correct, msg = _run()
-        _log_info(msg)
-        return is_correct
 
     def draw_input_graph(self, show_graph=False):
         """Compute a graphical representation of the input graph.
