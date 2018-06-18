@@ -53,10 +53,10 @@ def do_plot(cores, tsfs, node_count, show_out=False):
     plt.yticks()
     plt.xlabel('Cores')
     plt.ylabel('Run time (in arbitrary unit)')
-    plt.suptitle("Tuning number of Page Rank vertices managed by a single core")
-    plt.title(("Mapping a fixed-size graph (|V|={}, |E|={}) onto a varying "
-               "number of SpiNNaker cores.\n15 cores / chip").format(
-        node_count, 10 * node_count), fontsize=8)
+    # plt.suptitle("Tuning number of Page Rank vertices managed by a single core")
+    plt.title(("Mapping a fixed-size graph (|V|={}, |E|={}) onto a \nvarying "
+               "number of cores. 15 cores / chip").format(
+        node_count, 10 * node_count), fontsize=9)
 
     save_plot_data('plots/atoms_per_core_vs_running_time', raw_data)
 

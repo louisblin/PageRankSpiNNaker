@@ -114,10 +114,10 @@ def do_plot(n_sizes, tsfs, pyts, show_out=False):
     plt.yticks()
     plt.xlabel('Graph size (in #cores at full computational load)')
     plt.ylabel('Run time (in arbitrary unit)')
-    plt.suptitle("Page Rank (PR) scalability of Python vs. SpiNNaker")
+    # plt.suptitle("Page Rank (PR) scalability of Python vs. SpiNNaker")
     plt.title("Graph size in cores, each core manages |V|=255, |E|=2,550. "
               "15 cores / chip.\nPR complexity is O(|V|+|E|), hence the linear "
-              "fit  --  Average speed-up: x%.02f" % speedup, fontsize=8)
+              "fit  --  Average speed-up: x%.02f" % speedup, fontsize=9)
 
     save_plot_data('plots/graph_size_vs_running_time', raw_data)
 

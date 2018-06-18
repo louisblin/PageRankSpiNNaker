@@ -61,10 +61,10 @@ def do_plot(tsfs, prov_list, node_count, show_out=False):
     plt.yticks()
     plt.xlabel('Time allowance (in time_scale_factor)')
     plt.ylabel('Packets dropped (x1000)')
-    plt.suptitle("Tuning hardware time step to avoid dropping packets")
+    # plt.suptitle("Tuning hardware time step to avoid dropping packets")
     plt.title(("Fixed-size graph (|V|={}, |E|={}). "
                "255 vertices / core, 15 cores / chip").format(
-        node_count, 10 * node_count), fontsize=8)
+        node_count, 10 * node_count), fontsize=9)
 
     save_plot_data('plots/packet_drop_vs_time_scale_factor', data)
 
