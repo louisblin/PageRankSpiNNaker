@@ -4,10 +4,7 @@ import os
 import sys
 import time
 
-import tqdm
-import matplotlib.pyplot as plt
 import numpy as np
-import networkx as nx
 
 import page_rank.model.tools.simulation as sim
 from page_rank.examples.utils import runner, save_plot_data, mk_path
@@ -22,6 +19,7 @@ TSF_RES = 10
 def _sim_worker(edges=None, labels=None, **tsf_kwargs):
     tsf = sim_worker(edges, labels, verify=False, pause=False, **tsf_kwargs)
 
+    # import networkx as nx
     # params = dict(time_scale_factor=tsf)
     # with sim.PageRankSimulation(
     #         RUN_TIME, edges, labels, params,
@@ -41,7 +39,13 @@ def _sim_worker(edges=None, labels=None, **tsf_kwargs):
     return tsf, 0  # pyt
 
 
-def run(core_min=None, core_step=None, core_max=None, show_out=None):
+def run(core_min=None, core_step=None, core_max=None, show_out=None, hbp=None):
+    if hbp:
+        from page_rank.examples.utils import hbp_install_requirements
+        hbp_install_requirements()
+
+    import tqdm
+
     cores = list(range(core_min, core_max + 1, core_step))
 
     n_sizes = []
@@ -70,6 +74,8 @@ def run(core_min=None, core_step=None, core_max=None, show_out=None):
 
 
 def do_plot(n_sizes, tsfs, pyts, show_out=False):
+    import matplotlib.pyplot as plt
+
     print("Displaying graph. "
           "Check DISPLAY={} if this hangs...".format(os.getenv('DISPLAY')))
     plt.clf()
@@ -132,6 +138,7 @@ if __name__ == '__main__':
     parser.add_argument('core_step', metavar='CORE_STEP', type=int, default=1)
     parser.add_argument('core_max', metavar='CORE_MAX', type=int, default=15)
     parser.add_argument('-o', '--show-out', action='store_true')
+    parser.add_argument('--hbp', action='store_true', help='Running on HBP.')
 
     # Recreate the same graphs for the same arguments
     random.seed(42)

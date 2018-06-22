@@ -71,7 +71,8 @@ def save_plot_data(path, raw_data):
 
     save_dir = mk_path(path)
     i = max(map(int, [f[4:-4] for f in os.listdir(save_dir)])) + 1
-    np.savetxt(os.path.join(save_dir, 'run-%d.csv' % i), raw_data, delimiter=',')
+    np.savetxt(os.path.join(save_dir, 'run-%d.csv' % i), raw_data,
+               delimiter=',')
     plt.savefig(os.path.join(save_dir, 'run-%d.png' % i))
     print('\n>>> Results saved at %s/run-%d.*' % (save_dir, i))
 
@@ -125,6 +126,7 @@ def _install_and_import(package, version):
     try:
         importlib.import_module(package)
     except ImportError:
+        # Only works under pip==9.0.0
         pip.main(['install', '--user', fname])
     finally:
         import site
@@ -132,9 +134,9 @@ def _install_and_import(package, version):
         globals()[package] = importlib.import_module(package)
 
 
-def install_requirements():
+def hbp_install_requirements():
     import matplotlib
     matplotlib.use('Agg')
-    _install_and_import('networkx' , '2.1')
+    _install_and_import('networkx', '2.1')
     _install_and_import('prettytable', '0.7.2')
     _install_and_import('tqdm', '4.23.4')

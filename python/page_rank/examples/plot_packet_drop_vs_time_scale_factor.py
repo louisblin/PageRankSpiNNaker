@@ -3,8 +3,6 @@ import random
 import os
 import sys
 
-import tqdm
-import matplotlib.pyplot as plt
 import numpy as np
 
 from page_rank.model.tools.simulation import PageRankSimulation, LOG_HIGHLIGHTS
@@ -31,7 +29,12 @@ def _sim_worker(edges=None, labels=None, tsf=None):
 
 
 def run(node_count=None, tsf_min=None, tsf_step=None, tsf_max=None,
-        show_out=None):
+        show_out=None, hbp=None):
+    if hbp:
+        from page_rank.examples.utils import hbp_install_requirements
+        hbp_install_requirements()
+    import tqdm
+
     edge_count = node_count * 10
     tsfs = list(range(tsf_min, tsf_max + 1, tsf_step))
     prov_list = []
@@ -44,6 +47,8 @@ def run(node_count=None, tsf_min=None, tsf_step=None, tsf_max=None,
 
 
 def do_plot(tsfs, prov_list, node_count, show_out=False):
+    import matplotlib.pyplot as plt
+
     print("Displaying graph. "
           "Check DISPLAY={} if this hangs...".format(os.getenv('DISPLAY')))
     plt.clf()
@@ -80,6 +85,7 @@ if __name__ == '__main__':
     parser.add_argument('tsf_step', metavar='TSF_STEP', type=int)
     parser.add_argument('tsf_max', metavar='TSF_MAX', type=int)
     parser.add_argument('-o', '--show-out', action='store_true')
+    parser.add_argument('--hbp', action='store_true', help='Running on HBP.')
 
     # Recreate the same graphs for the same arguments
     random.seed(42)

@@ -4,8 +4,6 @@ import random
 import os
 import sys
 
-import tqdm
-import matplotlib.pyplot as plt
 import numpy as np
 
 from page_rank.examples.utils import runner, save_plot_data
@@ -19,7 +17,13 @@ TSF_MAX = 300
 
 
 def run(node_count=None, core_min=None, core_step=None, core_max=None,
-        show_out=None):
+        show_out=None, hbp=None):
+    if hbp:
+        from page_rank.examples.utils import hbp_install_requirements
+        hbp_install_requirements()
+
+    import tqdm
+
     cores = list(range(core_min, core_max+1, core_step))
 
     # Fit the same graph size of 1, 2, ... 15 cores
@@ -38,6 +42,8 @@ def run(node_count=None, core_min=None, core_step=None, core_max=None,
 
 
 def do_plot(cores, tsfs, node_count, show_out=False):
+    import matplotlib.pyplot as plt
+
     print("Displaying graph. "
           "Check DISPLAY={} if this hangs...".format(os.getenv('DISPLAY')))
     plt.clf()
@@ -72,6 +78,7 @@ if __name__ == '__main__':
     parser.add_argument('core_step', metavar='CORE_STEP', type=int, default=1)
     parser.add_argument('core_max', metavar='CORE_MAX', type=int, default=15)
     parser.add_argument('-o', '--show-out', action='store_true')
+    parser.add_argument('--hbp', action='store_true', help='Running on HBP.')
 
     # Recreate the same graphs for the same arguments
     random.seed(42)

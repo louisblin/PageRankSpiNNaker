@@ -9,7 +9,10 @@ RUN_TIME = N_ITER * .1  # multiplied by time step in ms
 
 
 def sim_worker(edges=None, labels=None, verify=None, pause=None,
-               tsf_min=None, tsf_res=None, tsf_max=None, **kwargs):
+               tsf_min=None, tsf_res=None, tsf_max=None, hbp=None, **kwargs):
+    if hbp:
+        from page_rank.examples.utils import hbp_install_requirements
+        hbp_install_requirements()
     tsf = None
 
     while abs(tsf_max - tsf_min) > tsf_res:
@@ -50,6 +53,7 @@ if __name__ == '__main__':
                         help='Verify sim w/ Python PR impl')
     parser.add_argument('-p', '--pause', action='store_true',
                         help='Pause after each runs')
+    parser.add_argument('--hbp', action='store_true', help='Running on HBP.')
 
     # Recreate the same graphs for the same arguments
     random.seed(42)

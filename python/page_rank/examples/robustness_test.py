@@ -1,7 +1,6 @@
 import argparse
 import random
 import sys
-import tqdm
 
 import page_rank.model.tools.simulation as sim
 from page_rank.examples.utils import runner
@@ -31,7 +30,12 @@ def _mk_sim_run(edges=None, labels=None, verify=None, pause=None,
         return is_correct
 
 
-def run(runs=None, **kwargs):
+def run(runs=None, hbp=None, **kwargs):
+    if hbp:
+        from page_rank.examples.utils import hbp_install_requirements
+        hbp_install_requirements()
+    import tqdm
+
     results = [runner(_mk_sim_run, runs, **kwargs)
                for _ in tqdm.tqdm(range(runs), total=runs)]
     correct = sum(map(int, results))
@@ -55,6 +59,7 @@ if __name__ == '__main__':
     parser.add_argument('-l', '--log-level', type=int,
                         default=sim.LOG_HIGHLIGHTS,
                         help='The integer log level to set')
+    parser.add_argument('--hbp', action='store_true', help='Running on HBP.')
 
     # Recreate the same graphs for the same arguments
     random.seed(42)
