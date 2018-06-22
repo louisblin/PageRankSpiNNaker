@@ -1,5 +1,7 @@
 # FYP
 
+Available at: https://github.com/louisblin/FYP.
+
 Final Year Project investigating alternative applications of the SpiNNaker 
 hardware. Currently, the focus is on graph based algorithms such as Page Rank.
 
