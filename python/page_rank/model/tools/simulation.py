@@ -67,6 +67,26 @@ def check_sim_ran(func):
     return wrapper
 
 
+def graph_visualiser(func):
+    """Handle the basic logic around graph outputting"""
+    def wrapper(*args, **kwargs):
+        """
+        :param show_graph: whether to display the graph, default is False
+        :param save_graph: whether to save the graph to disk
+        """
+        show_graph = kwargs.pop('show_graph', False)
+        save_graph = kwargs.pop('save_graph', False)
+        if show_graph or save_graph:
+
+            func(*args, **kwargs)
+
+            if show_graph:
+                plt.show()
+            if save_graph:
+                plt.savefig('{}.png'.format(func.__name__))
+
+    return wrapper
+
 #
 # Main simulation interface
 #
@@ -95,7 +115,7 @@ class PageRankSimulation:
         self._model = None
         self._sim_ranks = None
         self._sim_convergence = None
-        self._input_graph = None
+        self._input_networkx_repr = None
 
         # Numpy printing with some precision and no scientific notation
         np.set_printoptions(suppress=True, precision=FLOAT_PRECISION)
@@ -290,6 +310,16 @@ class PageRankSimulation:
         # Ensures float is can be losslessly encoded in fixed-point
         return float(self._to_fp((1. - self._damping) / len(self._labels)))
 
+    def _init_networkx_repr(self):
+        if self._input_networkx_repr is None:
+            # Graph structure
+            G = nx.Graph().to_directed()
+            G.add_edges_from(self._edges)
+
+            # Save graph for Page Rank python computations
+            self._input_networkx_repr = G
+        return self._input_networkx_repr
+
     def _verify_sim(self, verify, diff_only=False, diff_max=50):
         """Verifies simulation results correctness.
 
@@ -308,7 +338,7 @@ class PageRankSimulation:
             FLOAT_PRECISION, it)
 
         if not verify:
-            return True, msg + "Correctness unchecked."
+            return True, msg + "Correctness unchecked.\n{}".format(computed_ranks)
 
         # Get Page Rank from python implementation
         _log_info("Computing Page Rank...")
@@ -372,11 +402,9 @@ class PageRankSimulation:
 
         """
         # Init graph structure
-        if self._input_graph is None:
-            # Compute input graph if not defined
-            self.draw_input_graph(show_graph=False)
+        G = self._init_networkx_repr()
 
-        W = nx.stochastic_graph(self._input_graph, weight=None)
+        W = nx.stochastic_graph(G, weight=None)
         N = W.number_of_nodes()
 
         # Init fixed-point constants
@@ -431,76 +459,66 @@ class PageRankSimulation:
                 return x, iter + 1  # iter t+1 happens at the end of time t
         raise nx.PowerIterationFailedConvergence(max_iter)
 
-    def draw_input_graph(self, show_graph=False):
+    @graph_visualiser
+    def draw_input_graph(self):
         """Compute a graphical representation of the input graph.
 
-        :param show_graph: whether to display the graph, default is False
         :return: None
         """
-
         # Graph structure
-        G = nx.Graph().to_directed()
-        G.add_edges_from(self._edges)
+        G = self._init_networkx_repr()
 
-        # Save graph for Page Rank python computations
-        self._input_graph = G
+        # Clear plot
+        _log_info("Displaying input graph. Check DISPLAY={} "
+                  "if this hangs...".format(os.getenv('DISPLAY')))
+        plt.clf()
 
-        if show_graph:
-            _log_info("Displaying input graph. "
-                      "Check DISPLAY={} if this hangs...".format(
-                os.getenv('DISPLAY')))
-            # Clear plot
-            plt.clf()
+        # Graph layout
+        pos = nx.layout.spring_layout(G)
+        nx.draw_networkx_nodes(G, pos, node_size=NX_NODE_SIZE,
+                               node_color='red')
+        nx.draw_networkx_edges(G, pos, arrowstyle='->')
+        nx.draw_networkx_labels(G, pos, font_color='white',
+                                font_weight='bold')
+        self_loops = G.nodes_with_selfloops()
+        nx.draw_networkx_nodes(self_loops, pos, node_size=NX_NODE_SIZE,
+                               node_color='black')
 
-            # Graph layout
-            pos = nx.layout.spring_layout(G)
-            nx.draw_networkx_nodes(G, pos, node_size=NX_NODE_SIZE,
-                                   node_color='red')
-            nx.draw_networkx_edges(G, pos, arrowstyle='->')
-            nx.draw_networkx_labels(G, pos, font_color='white',
-                                    font_weight='bold')
-            self_loops = G.nodes_with_selfloops()
-            nx.draw_networkx_nodes(self_loops, pos, node_size=NX_NODE_SIZE,
-                                   node_color='black')
-
-            # Show graph
-            plt.gca().set_axis_off()
-            plt.suptitle('Input graph for Page Rank')
-            plt.title('Black nodes are self-looping', fontsize=8)
-            plt.show()
+        # Show graph
+        plt.gca().set_axis_off()
+        plt.suptitle('Input graph for Page Rank')
+        plt.title('Black nodes are self-looping', fontsize=8)
 
     @check_sim_ran
-    def draw_output_graph(self, show_graph=True):
+    @graph_visualiser
+    def draw_output_graph(self):
         """Displays the computed rank over time.
 
         Note: pausing the simulation before it ends and is unloaded from the
               SpiNNaker chips allows for inspection of the post-simulation state
               through `ybug' (see SpiNNakerManchester/spinnaker_tools)
 
-        :param show_graph: whether to display the graph, default is False
         :return: None
         """
         ranks, _ = self._extract_sim_ranks()
 
-        if show_graph:
-            _log_info("Displaying output graph. "
-                      "Check DISPLAY={} if this hangs...".format(
-                os.getenv('DISPLAY')))
-            plt.clf()
+        # Clear plot
+        _log_info("Displaying output graph. Check DISPLAY={} "
+                  "if this hangs...".format(os.getenv('DISPLAY')))
+        plt.clf()
 
-            ranks = ranks.swapaxes(0, 1)
-            labels = self._labels or list(range(len(ranks)))
-            for lbl, r in zip(labels, ranks):
-                plt.plot(np.round(r, FLOAT_PRECISION),
-                         label=self._node_formatter(lbl))
-            plt.legend()
-            plt.xticks()
-            plt.yticks()
-            plt.xlabel('Time (ms)')
-            plt.ylabel('Rank')
-            plt.suptitle("Rank over time")
-            plt.title(ANNOTATION, fontsize=6)
-            plt.show()
+        ranks = ranks.swapaxes(0, 1)
+        labels = self._labels or list(range(len(ranks)))
+        for lbl, r in zip(labels, ranks):
+            plt.plot(np.round(r, FLOAT_PRECISION),
+                     label=self._node_formatter(lbl))
+        plt.legend()
+        plt.xticks()
+        plt.yticks()
+        plt.xlabel('Time (ms)')
+        plt.ylabel('Rank')
+        plt.suptitle("Rank over time")
+        plt.title(ANNOTATION, fontsize=6)
 
 
 #

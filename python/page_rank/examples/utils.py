@@ -1,11 +1,10 @@
+import importlib
 import os
 import random
 import re
 
-import networkx as nx
-import tqdm
-import matplotlib.pyplot as plt
 import numpy as np
+import pip
 
 from spinn_front_end_common.utilities import globals_variables
 from spinn_front_end_common.interface.interface_functions \
@@ -17,6 +16,8 @@ def _mk_label(n):
 
 
 def _mk_edges(node_count, edge_count):
+    import tqdm
+
     # Under these constraints we can comply with the requirements below
     assert node_count <= edge_count <= node_count ** 2, \
         "Need node_count=%d < edge_count=%d < %d " % (node_count, edge_count,
@@ -66,6 +67,8 @@ def mk_path(path):
 
 
 def save_plot_data(path, raw_data):
+    import matplotlib.pyplot as plt
+
     save_dir = mk_path(path)
     i = max(map(int, [f[4:-4] for f in os.listdir(save_dir)])) + 1
     np.savetxt(os.path.join(save_dir, 'run-%d.csv' % i), raw_data, delimiter=',')
@@ -81,6 +84,8 @@ def mk_graph(node_count, edge_count):
 
 
 def runner(fn, node_count=None, edge_count=None, **kwargs):
+    import networkx as nx
+
     while True:
         edges, labels = mk_graph(node_count, edge_count)
         try:
@@ -113,3 +118,23 @@ def extract_router_provenance(collect_names=None):
             res[name] += int(item.value)
 
     return res
+
+
+def _install_and_import(package, version):
+    fname = '{}=={}'.format(package, version)
+    try:
+        importlib.import_module(package)
+    except ImportError:
+        pip.main(['install', '--user', fname])
+    finally:
+        import site
+        reload(site)
+        globals()[package] = importlib.import_module(package)
+
+
+def install_requirements():
+    import matplotlib
+    matplotlib.use('Agg')
+    _install_and_import('networkx' , '2.1')
+    _install_and_import('prettytable', '0.7.2')
+    _install_and_import('tqdm', '4.23.4')
