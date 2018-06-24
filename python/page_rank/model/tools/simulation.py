@@ -4,7 +4,6 @@ import logging
 import os
 import signal
 import sys
-import threading
 from contextlib import contextmanager
 from functools import wraps
 
@@ -129,6 +128,7 @@ def graph_visualiser(func):
                     plt.show()
                 if save_graph:
                     plt.savefig('{}.png'.format(func.__name__))
+
         gui_run()
 
     return decorator
@@ -193,8 +193,9 @@ class PageRankSimulation:
                         raise FailedOnWarningError()
             else:
                 p.end()  # fails on sPyNNaker runtime error
-
         # else, exception is cascaded if there is one...
+        else:
+            exit(1)
 
     #
     # Private functions, internal helpers
@@ -385,8 +386,7 @@ class PageRankSimulation:
             FLOAT_PRECISION, it)
 
         if not verify:
-            return True, msg + "Correctness unchecked.\n{}".format(
-                computed_ranks)
+            return True, msg + "Correctness unchecked.\n"
 
         # Get Page Rank from python implementation
         _log_info("Computing Page Rank...")

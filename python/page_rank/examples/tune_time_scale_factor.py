@@ -1,4 +1,5 @@
 import argparse
+import logging
 import random
 
 import page_rank.model.tools.simulation as sim
@@ -6,6 +7,10 @@ from page_rank.examples.utils import runner, setup_cli
 
 N_ITER = 25
 RUN_TIME = N_ITER * .1  # multiplied by time step in ms
+
+
+def _log_info(*args, **kwargs):
+    logging.warning(*args, **kwargs)
 
 
 def sim_worker(edges=None, labels=None, verify=None, pause=None,
@@ -17,7 +22,7 @@ def sim_worker(edges=None, labels=None, verify=None, pause=None,
             tsf = tsf_min + (tsf_max - tsf_min) // 2
 
             # Run simulation / report
-            print('\n|> Running with time_scale_factor={}'.format(tsf))
+            _log_info('\n|> Running with time_scale_factor={}'.format(tsf))
             params = dict(time_scale_factor=tsf)
             with sim.PageRankSimulation(
                     RUN_TIME, edges, labels, params, fail_on_warning=True,
@@ -30,7 +35,7 @@ def sim_worker(edges=None, labels=None, verify=None, pause=None,
             # No error, increase tsf
             tsf_min = tsf
 
-    print('RESULT: time_scale_factor={}'.format(tsf_max))
+    _log_info('\n==> RESULT: time_scale_factor={}\n'.format(tsf_max))
     return tsf_max
 
 
