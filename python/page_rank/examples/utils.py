@@ -2,6 +2,7 @@ import importlib
 import os
 import random
 import re
+import sys
 
 import numpy as np
 
@@ -137,3 +138,23 @@ def hbp_install_requirements():
     _install_and_import('networkx', '2.1')
     _install_and_import('prettytable', '0.7.2')
     _install_and_import('tqdm', '4.23.4')
+
+
+def setup_cli(parser, fn):
+    parser.add_argument('-t', '--timeout', type=int, default=None,
+                        help='Simulation timeout. Default is no timeout.')
+    parser.add_argument('--hbp', action='store_true', help='Is running on HBP.')
+    kwargs = dict(vars(parser.parse_args()))
+
+    timeout = kwargs.pop('timeout')
+    hbp = kwargs.pop('hbp')
+
+    # Cancel simulation after 60seconds
+    if timeout is not None:
+        os.system('(sleep {} && kill -15 {})&'.format(timeout, os.getpid()))
+
+    # Install requirements on HBP
+    if hbp:
+        hbp_install_requirements()
+
+    sys.exit(fn(**kwargs))

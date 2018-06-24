@@ -1,13 +1,11 @@
 import argparse
-import sys
+
+from page_rank.examples.utils import setup_cli
 
 RUN_TIME = 2.1
 
 
-def run(show_in=False, show_out=False, hbp=False):
-    if hbp:
-        from page_rank.examples.utils import hbp_install_requirements
-        hbp_install_requirements()
+def run(show_in=False, show_out=False):
     from page_rank.model.tools.simulation import PageRankSimulation
 
     ############################################################################
@@ -40,6 +38,5 @@ if __name__ == '__main__':
                         help='Display directed graph input.')
     parser.add_argument('--show-out', action='store_true',
                         help='Display ranks curves output.')
-    parser.add_argument('--hbp', action='store_true', help='Running on HBP.')
 
-    sys.exit(run(**vars(parser.parse_args())))
+    setup_cli(parser, run)

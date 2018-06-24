@@ -6,8 +6,9 @@ import sys
 
 import numpy as np
 
-from page_rank.examples.utils import runner, save_plot_data
+from page_rank.examples.utils import runner, save_plot_data, setup_cli
 from page_rank.examples.tune_time_scale_factor import sim_worker
+from page_rank.model.tools.simulation import graph_visualiser
 
 N_ITER = 25
 RUN_TIME = N_ITER * .1  # multiplied by timestep in ms
@@ -17,11 +18,7 @@ TSF_MAX = 300
 
 
 def run(node_count=None, core_min=None, core_step=None, core_max=None,
-        show_out=None, hbp=None):
-    if hbp:
-        from page_rank.examples.utils import hbp_install_requirements
-        hbp_install_requirements()
-
+        show_out=None):
     import tqdm
 
     cores = list(range(core_min, core_max+1, core_step))
@@ -38,15 +35,12 @@ def run(node_count=None, core_min=None, core_step=None, core_max=None,
                      tsf_min=TSF_MIN, tsf_res=TSF_RES, tsf_max=TSF_MAX)
         tsfs.append(tsf)
 
-    return do_plot(cores, tsfs, node_count, show_out=show_out)
+    return do_plot(cores, tsfs, node_count, show_graph=show_out)
 
 
-def do_plot(cores, tsfs, node_count, show_out=False):
+@graph_visualiser
+def do_plot(cores, tsfs, node_count):
     import matplotlib.pyplot as plt
-
-    print("Displaying graph. "
-          "Check DISPLAY={} if this hangs...".format(os.getenv('DISPLAY')))
-    plt.clf()
 
     # Normalise data
     raw_data = np.array([cores, tsfs])
@@ -66,9 +60,6 @@ def do_plot(cores, tsfs, node_count, show_out=False):
 
     save_plot_data('plots/atoms_per_core_vs_running_time', raw_data)
 
-    if show_out:
-        plt.show()
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -78,8 +69,7 @@ if __name__ == '__main__':
     parser.add_argument('core_step', metavar='CORE_STEP', type=int, default=1)
     parser.add_argument('core_max', metavar='CORE_MAX', type=int, default=15)
     parser.add_argument('-o', '--show-out', action='store_true')
-    parser.add_argument('--hbp', action='store_true', help='Running on HBP.')
 
     # Recreate the same graphs for the same arguments
     random.seed(42)
-    sys.exit(run(**vars(parser.parse_args())))
+    setup_cli(parser, run)

@@ -4,6 +4,7 @@ import logging
 import os
 import signal
 import sys
+import threading
 from contextlib import contextmanager
 from functools import wraps
 
@@ -110,6 +111,8 @@ def graph_visualiser(func):
 
         @timeout(2)
         def gui_clear():
+            # Freezes with TkAgg / invalid DISPLAY
+            # TODO: move in a thread that is killed
             plt.clf()  # Clear plot
 
         @timeout(60 if show_graph else 5)
@@ -126,7 +129,7 @@ def graph_visualiser(func):
                     plt.show()
                 if save_graph:
                     plt.savefig('{}.png'.format(func.__name__))
-        return gui_run()
+        gui_run()
 
     return decorator
 
