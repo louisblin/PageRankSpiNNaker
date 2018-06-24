@@ -4,7 +4,6 @@ import random
 import re
 
 import numpy as np
-import pip
 
 from spinn_front_end_common.utilities import globals_variables
 from spinn_front_end_common.interface.interface_functions \
@@ -122,12 +121,10 @@ def extract_router_provenance(collect_names=None):
 
 
 def _install_and_import(package, version):
-    fname = '{}=={}'.format(package, version)
     try:
         importlib.import_module(package)
     except ImportError:
-        # Only works under pip==9.0.0
-        pip.main(['install', '--user', fname])
+        os.system('pip install --user {}=={}'.format(package, version))
     finally:
         import site
         reload(site)

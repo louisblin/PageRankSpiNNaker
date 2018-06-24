@@ -1,8 +1,11 @@
+import errno
 import io
 import logging
 import os
+import signal
 import sys
 from contextlib import contextmanager
+from functools import wraps
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -15,7 +18,6 @@ from page_rank.model.python_models.model_data_holders.page_rank_data_holder \
 from page_rank.model.python_models.synapse_dynamics.synapse_dynamics_noop \
     import SynapseDynamicsNoOp
 from page_rank.model.tools.fixed_point import FXfamily
-
 
 LOG_HIGHLIGHTS = logging.INFO + 1
 RANK = 'v'
@@ -47,6 +49,33 @@ logger = logging.getLogger(__name__)
 class FailedOnWarningError(RuntimeError):
     pass
 
+
+class GUITimeoutError(Exception):
+    pass
+
+
+def timeout(seconds=10, error_message=os.strerror(errno.ETIME)):
+    def decorator(func):
+        def _handle_timeout(signum, frame):
+            raise GUITimeoutError(
+                "Displaying graph timed out after {}sec. This is probably due "
+                "to an invalid value of 'DISPLAY={}'...".format(
+                    seconds, os.getenv('DISPLAY')))
+
+        def wrapper(*args, **kwargs):
+            signal.signal(signal.SIGALRM, _handle_timeout)
+            signal.alarm(seconds)
+            try:
+                result = func(*args, **kwargs)
+            finally:
+                signal.alarm(0)
+            return result
+
+        return wraps(func)(wrapper)
+
+    return decorator
+
+
 def _log_info(*args, **kwargs):
     logging.log(LOG_HIGHLIGHTS, *args, **kwargs)
 
@@ -59,33 +88,48 @@ def check_sim_ran(func):
 
     :return: None
     """
-    def wrapper(self, *args, **kwargs):
+
+    def decorator(self, *args, **kwargs):
         if self._model is None:
             raise RuntimeError('You first need to .start(...) the simulation.')
         return func(self, *args, **kwargs)
 
-    return wrapper
+    return decorator
 
 
 def graph_visualiser(func):
     """Handle the basic logic around graph outputting"""
-    def wrapper(*args, **kwargs):
+
+    def decorator(*args, **kwargs):
         """
         :param show_graph: whether to display the graph, default is False
         :param save_graph: whether to save the graph to disk
         """
         show_graph = kwargs.pop('show_graph', False)
         save_graph = kwargs.pop('save_graph', False)
-        if show_graph or save_graph:
 
-            func(*args, **kwargs)
+        @timeout(2)
+        def gui_clear():
+            plt.clf()  # Clear plot
 
-            if show_graph:
-                plt.show()
-            if save_graph:
-                plt.savefig('{}.png'.format(func.__name__))
+        @timeout(60 if show_graph else 5)
+        def gui_run():
+            if show_graph or save_graph:
+                try:
+                    gui_clear()
+                except GUITimeoutError:
+                    _log_info("Skip frozen pyplt.clf()...")
 
-    return wrapper
+                func(*args, **kwargs)
+
+                if show_graph:
+                    plt.show()
+                if save_graph:
+                    plt.savefig('{}.png'.format(func.__name__))
+        return gui_run()
+
+    return decorator
+
 
 #
 # Main simulation interface
@@ -210,8 +254,8 @@ class PageRankSimulation:
             if len(diff_idx) > diff_max:
                 compacted_label = "{}..{}".format(labels[diff_max], labels[-1])
                 labels = labels[:diff_max] + [compacted_label]
-                row_1  = row_1[:diff_max]  + [0]
-                row_2  = row_2[:diff_max]  + [0]
+                row_1 = row_1[:diff_max] + [0]
+                row_2 = row_2[:diff_max] + [0]
 
             # Construct table
             table = PrettyTable([''] + map(self._node_formatter, labels))
@@ -338,7 +382,8 @@ class PageRankSimulation:
             FLOAT_PRECISION, it)
 
         if not verify:
-            return True, msg + "Correctness unchecked.\n{}".format(computed_ranks)
+            return True, msg + "Correctness unchecked.\n{}".format(
+                computed_ranks)
 
         # Get Page Rank from python implementation
         _log_info("Computing Page Rank...")
@@ -468,11 +513,6 @@ class PageRankSimulation:
         # Graph structure
         G = self._init_networkx_repr()
 
-        # Clear plot
-        _log_info("Displaying input graph. Check DISPLAY={} "
-                  "if this hangs...".format(os.getenv('DISPLAY')))
-        plt.clf()
-
         # Graph layout
         pos = nx.layout.spring_layout(G)
         nx.draw_networkx_nodes(G, pos, node_size=NX_NODE_SIZE,
@@ -489,7 +529,6 @@ class PageRankSimulation:
         plt.suptitle('Input graph for Page Rank')
         plt.title('Black nodes are self-looping', fontsize=8)
 
-    @check_sim_ran
     @graph_visualiser
     def draw_output_graph(self):
         """Displays the computed rank over time.
@@ -501,11 +540,6 @@ class PageRankSimulation:
         :return: None
         """
         ranks, _ = self._extract_sim_ranks()
-
-        # Clear plot
-        _log_info("Displaying output graph. Check DISPLAY={} "
-                  "if this hangs...".format(os.getenv('DISPLAY')))
-        plt.clf()
 
         ranks = ranks.swapaxes(0, 1)
         labels = self._labels or list(range(len(ranks)))
