@@ -138,7 +138,7 @@ class SpiNNakerAdapter(SpiNNakerAdapterInterface):
 
         return res
 
-    def produced_provenance_warnings(self):
+    def has_provenance_warnings(self):
         """Whether the simulation produced provenance data warnings.
 
         :return: <bool>

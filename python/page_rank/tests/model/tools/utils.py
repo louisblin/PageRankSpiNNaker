@@ -5,10 +5,23 @@ from page_rank.model.tools.spinnaker_adapter_interface import \
 
 
 #
-# Main simulation interface
+# Dummy SpiNNaker adapter interface
 #
 
 class SpiNNakerTestAdapter(SpiNNakerAdapterInterface):
+
+    def __init__(self, ranks=None, router_prov=None, has_prov_warnings=False):
+        SpiNNakerAdapterInterface.__init__(self)
+
+        if ranks is None:
+            ranks = np.array([])
+        self._ranks = ranks
+
+        if router_prov is None:
+            router_prov = np.array([])
+        self._router_prov = router_prov
+
+        self._has_prov_warnings = has_prov_warnings
 
     def simulation_setup(self, *args, **kwargs):
         pass
@@ -27,7 +40,7 @@ class SpiNNakerTestAdapter(SpiNNakerAdapterInterface):
 
         :return: <np.array> ranks
         """
-        return np.array()
+        return self._ranks
 
     def extract_router_provenance(self, collect_names=None):
         """Extract the router information for the given names.
@@ -35,11 +48,11 @@ class SpiNNakerTestAdapter(SpiNNakerAdapterInterface):
         :type collect_names: [<str>] router entries to extract
         :return: <dict> name-indexed names
         """
-        return np.array()
+        return self._router_prov
 
-    def produced_provenance_warnings(self):
+    def has_provenance_warnings(self):
         """Whether the simulation produced provenance data warnings.
 
         :return: <bool>
         """
-        return False
+        return self._has_prov_warnings

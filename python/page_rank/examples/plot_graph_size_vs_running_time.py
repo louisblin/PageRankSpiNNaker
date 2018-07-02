@@ -38,7 +38,7 @@ def _sim_worker(edges=None, labels=None, skip_python=None, **tsf_kwargs):
         start = time.time()
         try:
             # Ensure all iterations will be completed with a unrealistic tol
-            s.compute_page_rank(max_iter=N_ITER, tol=1e-100)
+            s.do_python_page_rank(max_iter=N_ITER, tol=1e-100)
             raise RuntimeError('Did not complete all iterations')
         except PageRankNoConvergence:
             pass

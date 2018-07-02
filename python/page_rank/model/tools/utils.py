@@ -8,6 +8,7 @@ from functools import wraps
 
 from page_rank.model.tools.fixed_point import FXfamily
 
+ITER_BITS = 2  # see c_models/src/neuron/in_messages.h
 LOG_IMPORTANT = (logging.INFO + logging.WARNING) // 2
 
 
@@ -50,7 +51,7 @@ def getLogger(name=__name__, log_level=logging.INFO):
         return logger
 
     # Log formatting
-    fmt = '%(asctime)s [%(levelname)-9s] %(name)-18s: %(message)s'
+    fmt = '%(asctime)s [%(levelname)-9s] %(module)-18s: %(message)s'
     fmt_date = '%H:%M:%S'
     formatter = logging.Formatter(fmt, fmt_date)
     handler = logging.StreamHandler()
@@ -72,16 +73,17 @@ def getLogger(name=__name__, log_level=logging.INFO):
 
 
 @contextmanager
-def silence_output(enable=True):
+def silence_output(enable=True, pipe_to=os.devnull):
     """Conditionally silences the outputs of stdout and stderr
 
     :param enable: if False, will disable silencing (i.e. normally output)
+    :param pipe_to: the file to which captured outputs will be piped to.
     """
     if not enable:
         yield  # Execute user code
         return
 
-    with open(os.devnull, "w") as new_target:
+    with open(pipe_to, "w") as new_target:
         old_stdout, sys.stdout = sys.stdout, new_target
         old_stderr, sys.stderr = sys.stderr, new_target
         try:
@@ -91,23 +93,25 @@ def silence_output(enable=True):
             sys.stderr = old_stderr
 
 
-def install_requirements():
+def install_requirements(requirements_file=None):
     """Installs the requirements.txt file in the parent directory
 
     This is usefull when running on the HBP platform, that does not provide a
     standard to install additional dependencies.
+
+    :param requirements_file: absolute path to the requirements.txt
     """
-    req = os.path.realpath(
-        os.path.join(os.path.dirname(__file__), '../requirements.txt')
-    )
-    with open(req, 'r') as fd:
-        for f_name in map(str.rstrip, fd.readlines()):
-            os.system('pip install --user "{}"'.format(f_name))
+    if requirements_file is None:
+        requirements_file = os.path.realpath(
+            os.path.join(os.path.dirname(__file__), '../requirements.txt'))
+
+    os.system('pip install --user -r "{}"'.format(requirements_file))
 
 
 def gui_timeout(seconds=10, error_message=os.strerror(errno.ETIME)):
     """Times out a the GUI matplotlib application after `seconds` sec.
     """
+
     def decorator(func):
         def _handle_timeout(signum, frame):
             raise GUITimeoutError(
@@ -129,21 +133,6 @@ def gui_timeout(seconds=10, error_message=os.strerror(errno.ETIME)):
     return decorator
 
 
-def check_sim_ran(func):
-    """Raises an error is the simulation was not ran.
-
-    State variable `self._model' serves as a proxy to determine if .start(...)
-    was called.
-    """
-
-    def decorator(self, *args, **kwargs):
-        if self._model is None:
-            raise RuntimeError('You first need to .start(...) the simulation.')
-        return func(self, *args, **kwargs)
-
-    return decorator
-
-
 def graph_visualiser(func):
     """Handle the basic logic around graph outputting
     """
@@ -151,7 +140,6 @@ def graph_visualiser(func):
     def decorator(*args, **kwargs):
         """
         :param show_graph: whether to display the graph, default is False
-        :param save_graph: whether to save the graph to disk
         """
         import matplotlib.pylot as plt
 
@@ -254,3 +242,83 @@ def format_ranks_string(labels, ranks, diff_only=False, diff_max=50):
             table.add_row([name] + map(float_formatter, row))
 
     return table.get_string()
+
+
+def compute_page_rank(g, labels, d, d_sum, tol, max_iter=100):
+    """Return the PageRank of the nodes in the graph.
+
+    Adapted to:
+     - use binary fixed-point arithmetic operations, like SpiNNaker
+     - return the # of iterations required to compute the Page Rank
+
+    Source
+    ------
+    networkx/algorithms/link_analysis/pagerank_alg.py
+
+
+    :param g: input graph
+    :param labels: labels of the nodes
+    :param d: damping factor
+    :param d_sum: damping sum
+    :param tol: convergence tolerance
+    :param max_iter: max iteration count before giving up on convergence
+    :return: ( <dict> node-indexed dict of ranks, <int> # iterations required )
+    """
+    import networkx as nx
+    import numpy as np
+
+    w = nx.stochastic_graph(g, weight=None)
+    n = w.number_of_nodes()
+
+    # Init fixed-point constants
+    d = to_fp(d)
+    tol = to_fp(tol)
+    zero = to_fp(0)
+    one = to_fp(1.)
+    n = to_fp(n)
+    d_sum = to_fp(d_sum)
+
+    # Iterate up to max_iter iterations
+    x = dict.fromkeys(w, one / n)
+    for iter_no in range(max_iter):
+        getLogger().debug('\n===== TIME STEP = {} ====='.format(iter_no))
+        x_last = x
+        x = dict.fromkeys(x_last.keys(), zero)
+
+        for node in x:
+            pkt = x_last[node] / to_fp(len(w[node]))
+            getLogger().debug('[t=%04d|#%3s] Sending pkt %f[%s]' % (
+                iter_no, node, pkt, to_hex(pkt)))
+
+            # Exchange ranks
+            for conn_node in w[node]:  # edge: node -> conn_node
+                prev = x[conn_node]
+                # Simulates payload-lossy encoding of the iteration
+                # See c_models/src/neuron/in_messages.h
+                #   function: in_messages_payload_format
+                x[conn_node] += ((pkt >> ITER_BITS) << ITER_BITS)
+                getLogger().debug("[idx=%3s] %f[%s] + %f[%s] = %f[%s]" % (
+                    conn_node, prev, to_hex(prev), pkt,
+                    to_hex(pkt), x[conn_node],
+                    to_hex(x[conn_node])))
+
+        # Compute dangling factor
+        if d != one:
+            for node in x:
+                prev = x[node]
+                x[node] = d_sum + d * x[node]
+                getLogger().debug(
+                    "[idx=%3s] %f[%s] * %f[%s] + %f[%s] = %f[%s]" % (
+                        node, d, to_hex(d), prev, to_hex(prev),
+                        d_sum,
+                        to_hex(d_sum), x[node],
+                        to_hex(x[node])))
+
+        # Check convergence, l1 norm
+        err = sum([abs(x[node] - x_last[node]) for node in x])
+        if err < n * tol:
+            if labels:
+                x = np.array([np.float64(x[v]) for v in labels])
+            return x, iter_no + 1  # iter t+1 happens at the end of time t
+
+    raise PageRankNoConvergence(max_iter)

@@ -1,7 +1,8 @@
 import abc
 
 
-class SpiNNakerAdapterInterface(metaclass=abc.ABCMeta):
+class SpiNNakerAdapterInterface:
+    __metaclass__ = abc.ABCMeta
 
     def __init__(self):
         pass
@@ -56,7 +57,7 @@ class SpiNNakerAdapterInterface(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def produced_provenance_warnings(self):
+    def has_provenance_warnings(self):
         """Whether the simulation produced provenance data warnings.
 
         :return: <bool>

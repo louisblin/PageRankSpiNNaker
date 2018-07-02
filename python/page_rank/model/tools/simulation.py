@@ -1,22 +1,19 @@
-import io
 import logging
 import matplotlib.pyplot as plt
 
 import networkx as nx
 import numpy as np
 
-from page_rank.model.tools.utils import FailedOnWarningError, check_sim_ran, \
-    graph_visualiser, to_fp, to_hex, getLogger, silence_output, \
-    PageRankNoConvergence, node_formatter, float_formatter, format_ranks_string
+from page_rank.model.tools.utils import FailedOnWarningError, \
+    graph_visualiser, to_fp, getLogger, silence_output, node_formatter, \
+    format_ranks_string, compute_page_rank
 from page_rank.model.tools.spinnaker_adapter import SpiNNakerAdapter
 
-RANK = 'v'
-NX_NODE_SIZE = 350
-ITER_BITS = 2  # see c_models/src/neuron/in_messages.h
 FLOAT_PRECISION = 5
 TOL = 10 ** (-FLOAT_PRECISION)
+
+NX_NODE_SIZE = 350
 ANNOTATION = 'Simulated with SpiNNaker_under_version(1!4.0.0-Riptalon)'
-PROVENANCE_LOGGER = 'spinn_front_end_common.interface.abstract_spinnaker_base'
 DEFAULT_SPYNNAKER_PARAMS = {
     # Time interval between each timer tick on SpiNNaker
     'timestep': .1,  # ms
@@ -34,19 +31,48 @@ DEFAULT_SPYNNAKER_PARAMS = {
 # Main simulation interface
 #
 
+def _gen_labels(edges):
+    return map(str, set([s for s, _ in edges] + [t for _, t in edges]))
+
+
+def _gen_sim_vertices(labels):
+    return list(range(len(labels)))
+
+
+def _gen_sim_edges(edges, labels, sim_vertices):
+    labels_to_ids = dict(zip(labels, sim_vertices))
+    return [(labels_to_ids[src], labels_to_ids[tgt]) for src, tgt in edges]
+
+
 class PageRankSimulation:
 
     def __init__(self, run_time, edges, labels=None, parameters=None,
                  damping=.85, log_level=logging.INFO, pause=False,
                  fail_on_warning=False, spinnaker_adapter=SpiNNakerAdapter()):
+        """Creates an object to define, run and inspect a Page Rank simulation.
+
+        :param run_time: time to run the computation for
+        :param edges: list of edges
+        :param labels: labels of the nodes
+        :param parameters: sPyNNaker setup() parameters
+        :param damping: damping factor in Page Rank
+        :param log_level: global log level
+        :param pause: pausing the simulation before it ends and is unloaded from
+                      the SpiNNaker chips allows for inspection of the
+                      post-simulation state through `ybug'
+                      (see SpiNNakerManchester/spinnaker_tools)
+
+        :param fail_on_warning: throw an exception if simulation throws warnings
+        :param spinnaker_adapter: adapter to interact with the neural model
+        """
         self._validate_graph_structure(edges, labels, damping)
 
         # Simulation parameters
         self._run_time = run_time
         self._edges = edges
-        self._labels = labels or self._gen_labels(self._edges)
-        self._sim_vertices = self._gen_sim_vertices(self._labels)
-        self._sim_edges = self._gen_sim_edges(self._edges, self._labels,
+        self._labels = labels or _gen_labels(self._edges)
+        self._sim_vertices = _gen_sim_vertices(self._labels)
+        self._sim_edges = _gen_sim_edges(self._edges, self._labels,
                                               self._sim_vertices)
         self._parameters = DEFAULT_SPYNNAKER_PARAMS
         self._parameters.update(parameters or {})
@@ -56,16 +82,16 @@ class PageRankSimulation:
         self._spinnaker_adapter = spinnaker_adapter
 
         # Simulation state variables
-        self._model = None
         self._sim_ranks = None
         self._sim_convergence = None
         self._input_networkx_repr = None
+        self._simulation_has_ran = True
 
         # Numpy printing with some precision and no scientific notation
         np.set_printoptions(suppress=True, precision=FLOAT_PRECISION)
 
         # logging
-        self._logger = getLogger(name=__name__, log_level=log_level)
+        self._logger = getLogger(log_level=log_level)
 
     def __enter__(self):
         return self
@@ -75,10 +101,9 @@ class PageRankSimulation:
             if self._pause:
                 raw_input('Press any key to finish...')
 
-            if self._fail_on_warning and \
-                    self._spinnaker_adapter.produced_provenance_warnings():
-                raise FailedOnWarningError()
-
+            if self._fail_on_warning:
+                if self._spinnaker_adapter.has_provenance_warnings():
+                    raise FailedOnWarningError()
             else:
                 self._spinnaker_adapter.simulation_teardown()
         # else, exception is cascaded if there is one...
@@ -92,40 +117,45 @@ class PageRankSimulation:
         # Ensure to duplicate edges
         size_diff = len(edges) - len(set(edges))
         if size_diff != 0:
-            raise ValueError("graph structure error - %d duplicate(s) found." %
-                             size_diff)
+            raise ValueError("Found %d forbidden duplicate edges." % size_diff)
 
         # Ensure all nodes connected (no dangling nodes)
         if labels:
-            size_diff = len(labels) - len(self._gen_labels(edges))
+            size_diff = len(labels) - len(_gen_labels(edges))
             if size_diff != 0:
-                raise ValueError("#labels don't match #edges by %d labels." %
-                                 size_diff)
+                raise ValueError("Found %d dangling nodes (extra 'labels' "
+                                 "not used in 'edges')." % size_diff)
 
         # Ensure damping factor has a valid range
         if not (0 <= damping < 1):
-            raise ValueError("Damping factor '%.02f' not in valid range [0,1)."
-                             % damping)
+            raise ValueError("Damping factor '%.02f' not in [0,1)." % damping)
 
-    @staticmethod
-    def _gen_labels(edges):
-        return map(str, set([s for s, _ in edges] + [t for _, t in edges]))
+    def _get_damping_factor(self):
+        # Ensures float is encoded in fixed-point without precision loss
+        return float(to_fp(self._damping))
 
-    @staticmethod
-    def _gen_sim_vertices(labels):
-        return list(range(len(labels)))
+    def _get_damping_sum(self):
+        # Ensures float is encoded in fixed-point without precision loss
+        return float(to_fp((1. - self._damping) / len(self._labels)))
 
-    @staticmethod
-    def _gen_sim_edges(edges, labels, sim_vertices):
-        labels_to_ids = dict(zip(labels, sim_vertices))
-        return [(labels_to_ids[src], labels_to_ids[tgt]) for src, tgt in edges]
+    def _init_networkx_repr(self):
+        if self._input_networkx_repr is None:
+            # Graph structure
+            g = nx.Graph().to_directed()
+            g.add_edges_from(self._edges)
 
-    @check_sim_ran
+            # Save graph for Page Rank python computations
+            self._input_networkx_repr = g
+        return self._input_networkx_repr
+
     def _extract_sim_ranks(self):
         """Extracts the rank computed during the simulation.
 
         :return: (<np.array> ranks, <int> number of iterations to convergence)
         """
+        if not self._simulation_has_ran:
+            raise RuntimeError('You first need to .run(...) the simulation.')
+
         if self._sim_ranks is None:
             ranks = self._spinnaker_adapter.extract_ranks()
 
@@ -149,24 +179,6 @@ class PageRankSimulation:
             self._sim_ranks, self._sim_convergence = ranks, convergence
         return self._sim_ranks, self._sim_convergence
 
-    def _get_damping_factor(self):
-        # Ensures float is encoded in fixed-point without precision loss
-        return float(to_fp(self._damping))
-
-    def _get_damping_sum(self):
-        # Ensures float is encoded in fixed-point without precision loss
-        return float(to_fp((1. - self._damping) / len(self._labels)))
-
-    def _init_networkx_repr(self):
-        if self._input_networkx_repr is None:
-            # Graph structure
-            g = nx.Graph().to_directed()
-            g.add_edges_from(self._edges)
-
-            # Save graph for Page Rank python computations
-            self._input_networkx_repr = g
-        return self._input_networkx_repr
-
     def _verify_sim(self, verify, diff_only=False, diff_max=50):
         """Verifies simulation results correctness.
 
@@ -189,7 +201,7 @@ class PageRankSimulation:
 
         # Get Page Rank from python implementation
         self._logger.important("Computing Page Rank...")
-        expected_ranks, it = self.compute_page_rank()
+        expected_ranks, it = self.do_python_page_rank()
         msg += "[Python PR] Convergence < 10e-%d in #%d iterations.\n" % (
             FLOAT_PRECISION, it)
 
@@ -240,6 +252,7 @@ class PageRankSimulation:
 
             # Run
             self._spinnaker_adapter.simulation_run(self._run_time)
+            self._simulation_has_ran = True
 
             # Correctness check
             is_correct, msg = self._verify_sim(verify, **kwargs)
@@ -247,7 +260,7 @@ class PageRankSimulation:
         self._logger.important(msg)
         return is_correct
 
-    def compute_page_rank(self, max_iter=100, tol=TOL):
+    def do_python_page_rank(self, max_iter=100, tol=TOL):
         """Return the PageRank of the nodes in the graph.
 
         Adapted to return the # of iterations necessary to compute the Page Rank
@@ -255,71 +268,21 @@ class PageRankSimulation:
         Source
         ------
         networkx/algorithms/link_analysis/pagerank_alg.py
-
         """
+
         # Init graph structure
         g = self._init_networkx_repr()
+        labels = self._labels
+        d = self._get_damping_factor()
+        d_sum = self._get_damping_sum()
 
-        w = nx.stochastic_graph(g, weight=None)
-        n = w.number_of_nodes()
-
-        # Init fixed-point constants
-        d = to_fp(self._get_damping_factor())
-        tol = to_fp(tol)
-        zero = to_fp(0)
-        one = to_fp(1.)
-        n = to_fp(n)
-        damping_sum = to_fp(self._get_damping_sum())
-
-        # Iterate up to max_iter iterations
-        x = dict.fromkeys(w, one / n)
-        for iter_no in range(max_iter):
-            self._logger.debug('\n===== TIME STEP = {} ====='.format(iter_no))
-            x_last = x
-            x = dict.fromkeys(x_last.keys(), zero)
-
-            for node in x:
-                pkt = x_last[node] / to_fp(len(w[node]))
-                self._logger.debug('[t=%04d|#%3s] Sending pkt %f[%s]' % (
-                    iter_no, node, pkt, to_hex(pkt)))
-
-                # Exchange ranks
-                for conn_node in w[node]:  # edge: node -> conn_node
-                    prev = x[conn_node]
-                    # Simulates payload-lossy encoding of the iteration
-                    # See c_models/src/neuron/in_messages.h
-                    #   function: in_messages_payload_format
-                    x[conn_node] += ((pkt >> ITER_BITS) << ITER_BITS)
-                    self._logger.debug("[idx=%3s] %f[%s] + %f[%s] = %f[%s]" % (
-                        conn_node, prev, to_hex(prev), pkt,
-                        to_hex(pkt), x[conn_node],
-                        to_hex(x[conn_node])))
-
-            # Compute dangling factor
-            if d != one:
-                for node in x:
-                    prev = x[node]
-                    x[node] = damping_sum + d * x[node]
-                    self._logger.debug(
-                        "[idx=%3s] %f[%s] * %f[%s] + %f[%s] = %f[%s]" % (
-                            node, d, to_hex(d), prev, to_hex(prev),
-                            damping_sum,
-                            to_hex(damping_sum), x[node],
-                            to_hex(x[node])))
-
-            # Check convergence, l1 norm
-            err = sum([abs(x[node] - x_last[node]) for node in x])
-            if err < n * tol:
-                if self._labels:
-                    x = np.array([np.float64(x[v]) for v in self._labels])
-                return x, iter_no + 1  # iter t+1 happens at the end of time t
-
-        raise PageRankNoConvergence(max_iter)
+        return compute_page_rank(g, labels, d, d_sum, tol, max_iter)
 
     @graph_visualiser
     def draw_input_graph(self, save_graph=False):
         """Compute a graphical representation of the input graph.
         """
+
         # Graph structure
         g = self._init_networkx_repr()
 
@@ -343,11 +306,8 @@ class PageRankSimulation:
     @graph_visualiser
     def draw_output_graph(self, save_graph=False):
         """Displays the computed rank over time.
-
-        Note: pausing the simulation before it ends and is unloaded from the
-              SpiNNaker chips allows for inspection of the post-simulation state
-              through `ybug' (see SpiNNakerManchester/spinnaker_tools)
         """
+
         # Collect simulation ranks
         ranks, _ = self._extract_sim_ranks()
 
@@ -368,5 +328,3 @@ class PageRankSimulation:
 
         if save_graph:
             plt.savefig('input_graph.png')
-
-

@@ -18,7 +18,9 @@ env:
 
 install: echo "Nothing to do"
 
-script: ./scripts/docker_build
+script:
+  - ./scripts/docker_build
+  - ./scripts/docker_test
 
 # Publish on DockerHub
 deploy:
