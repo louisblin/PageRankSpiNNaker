@@ -29,11 +29,10 @@ class TestPageRankSimulation(unittest.TestCase):
         ]
 
         # SpiNNaker adapter
-        expected_ranks = np.array([[0.125, 0.37499, 0.18750, 0.31250]])
-        adapter = SpiNNakerTestAdapter(ranks=expected_ranks)
+        expected_ranks = np.array([[0.13867, 0.35709, 0.19761, 0.30664]])
+        adpt = SpiNNakerTestAdapter(ranks=expected_ranks)
 
-        with PageRankSimulation(run_time, edges, damping=1 - 10e-10,
-                                spinnaker_adapter=adapter) as sim:
+        with PageRankSimulation(run_time, edges, spinnaker_adapter=adpt) as sim:
             self.assertTrue(sim.run(verify=True))
 
 

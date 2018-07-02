@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
-PROJECT_ROOT="`( cd \"$(dirname \"$0\")/..\" && pwd )`"
-
-if [[ -z ${DOCKER_USERNAME} || -z ${DOCKER_IMAGE} || ${DOCKER_TAG_PROD} ]]
-then
-    IMAGE_PROD="louisleblin/toolchain:v4.0.0"
-else
-    IMAGE_PROD="${DOCKER_USERNAME}/${DOCKER_IMAGE}:${DOCKER_TAG_PROD}"
+# Only run on Travis for toolchain:v4.0.0
+if [[ "${DOCKER_TAG_PROD}" != "v4.0.0" ]]; then
+    echo "Skip testing for :${DOCKER_TAG_PROD}" && exit 0
 fi
+
+
+PROJECT_ROOT="`( cd \"$(dirname \"$0\")/..\" && pwd )`"
+IMAGE_PROD="louisleblin/toolchain:v4.0.0"
 
 echo "Running tests on ${IMAGE_PROD}..."
 

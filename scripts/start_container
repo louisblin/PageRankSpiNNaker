@@ -52,34 +52,49 @@ case $key in
 esac
 done
 
-# Show help if missing DOCKER_IMAGE
-[[ ${HELP} == YES ]] && print_help && exit
+function is_darwin {
+    [[ "`uname -s`" == "Darwin" ]] && return 0 || return 1
+}
+
+function configure_darwin_network {
+    # Configure card network
+    # NB: add /sbin/ifconfig to /etc/sudoers to avoid typing your password each time
+    sudo ifconfig en4 inet 192.168.240.254 netmask 255.255.255.0 router 0.0.0.0
+    [[ ${NETWORK_CONF_ONLY} == YES ]] && exit
+}
+
+function configure_darwin_x11 {
+    # Run container
+    IP=$(ifconfig en0 | grep inet | awk '$1=="inet" {print $2}')
+    echo "IP is $IP"
+    xhost + $IP
+}
 
 #
 # Run
 #
 
-# Configure card network
-# NB: add /sbin/ifconfig to /etc/sudoers to avoid typing your password each time
-sudo ifconfig en4 inet 192.168.240.254 netmask 255.255.255.0 router 0.0.0.0
-[[ ${NETWORK_CONF_ONLY} == YES ]] && exit
+# Show help if missing DOCKER_IMAGE
+[[ ${HELP} == YES ]] && print_help && exit
+
+# Setup IO
+is_darwin && configure_darwin_network
 
 [[ ${#POSITIONAL[@]} -eq 0 ]] && print_help && exit 1
 
+is_darwin && configure_darwin_x11
+
+# Setup image
 DOCKER_IMAGE="${POSITIONAL[0]}"
-DOCKER_OPTIONS="${POSITIONAL[@]:1}"
-[[ -z ${DOCKER_OPTIONS} ]] && DOCKER_OPTIONS=" --rm"
-
-# Run container
-IP=$(ifconfig en0 | grep inet | awk '$1=="inet" {print $2}')
-echo "IP is $IP"
-xhost + $IP
-
 [[ ${DO_PULL} == YES ]] && docker pull ${DOCKER_IMAGE}
 
-DOCKER_OPTIONS+=" --network host -e DISPLAY=${IP}:0 -v /tmp/.X11-unix:/tmp/.X11-unix"
+# Setup running arguments
+DOCKER_OPTIONS="${POSITIONAL[@]:1}"
+[[ -z ${DOCKER_OPTIONS} ]] && DOCKER_OPTIONS=" --rm"
+DOCKER_OPTIONS+=" --network host -e DISPLAY=${IP:-}:0"
+DOCKER_OPTIONS+=" -v /tmp/.X11-unix:/tmp/.X11-unix"
 
-# Run interactive
+# Run container
 if [[ -z ${CMD} ]]; then
   docker run --interactive --tty ${DOCKER_OPTIONS} ${DOCKER_IMAGE}
 else

@@ -12,15 +12,13 @@ env:
     - DOCKER_USERNAME=louisleblin
     # DOCKER_PASSWORD=<securely define on web interface>
   matrix:
-    - DOCKER_IMAGE=pynn8      DOCKER_TAG_PROD=latest     DOCKER_TAG_DEV=dev
-    - DOCKER_IMAGE=toolchain  DOCKER_TAG_PROD=v2016.001  DOCKER_TAG_DEV=v2016.001-dev
-    - DOCKER_IMAGE=toolchain  DOCKER_TAG_PROD=v4.0.0     DOCKER_TAG_DEV=v4.0.0-dev
+    - DOCKER_IMAGE=pynn8     DOCKER_TAG_PROD=latest    DOCKER_TAG_DEV=dev
+    - DOCKER_IMAGE=toolchain DOCKER_TAG_PROD=v2016.001 DOCKER_TAG_DEV=v2016.001-dev
+    - DOCKER_IMAGE=toolchain DOCKER_TAG_PROD=v4.0.0    DOCKER_TAG_DEV=v4.0.0-dev
 
-install: echo "Nothing to do"
+install: ./scripts/docker_build
 
-script:
-  - ./scripts/docker_build
-  - ./scripts/docker_test
+script: ./scripts/docker_test
 
 # Publish on DockerHub
 deploy:
