@@ -60,14 +60,10 @@ class TestInstallRequirements(unittest.TestCase):
         with open(file_path, 'w') as fd:
             fd.write('tqdm==4.23.3\n')
 
-        # Expect package to be missing
-        with self.assertRaises(ImportError):
-            import tqdm
-
         # Install package
         utils.install_requirements(requirements_file=file_path)
 
-        # Should now work
+        # Expect that precise version number (!= from requirements.txt)
         import tqdm
         self.assertEqual(tqdm.__version__, '4.23.3')
 
