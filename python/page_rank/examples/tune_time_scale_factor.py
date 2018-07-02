@@ -1,20 +1,19 @@
 import argparse
-import logging
 import random
 
-import page_rank.model.tools.simulation as sim
-from page_rank.examples.utils import runner, setup_cli
+from page_rank.examples.utils import setup_cli_and_run
+from page_rank.model.tools.utils import getLogger, FailedOnWarningError, \
+    LOG_IMPORTANT
 
 N_ITER = 25
 RUN_TIME = N_ITER * .1  # multiplied by time step in ms
 
-
-def _log_info(*args, **kwargs):
-    logging.warning(*args, **kwargs)
+_logger = getLogger(__name__)
 
 
 def sim_worker(edges=None, labels=None, verify=None, pause=None,
-               tsf_min=None, tsf_res=None, tsf_max=None, **kwargs):
+               tsf_min=None, tsf_res=None, tsf_max=None):
+    from page_rank.model.tools.simulation import PageRankSimulation
     tsf = None
 
     while abs(tsf_max - tsf_min) > tsf_res:
@@ -22,20 +21,20 @@ def sim_worker(edges=None, labels=None, verify=None, pause=None,
             tsf = tsf_min + (tsf_max - tsf_min) // 2
 
             # Run simulation / report
-            _log_info('\n|> Running with time_scale_factor={}'.format(tsf))
+            _logger.important('\n|> Running w/ time_scale_factor=%d' % tsf)
             params = dict(time_scale_factor=tsf)
-            with sim.PageRankSimulation(
+            with PageRankSimulation(
                     RUN_TIME, edges, labels, params, fail_on_warning=True,
-                    pause=pause, log_level=sim.LOG_HIGHLIGHTS) as s:
-                s.run(verify=verify, diff_only=True, **kwargs)
+                    pause=pause, log_level=LOG_IMPORTANT) as s:
+                s.run(verify=verify, diff_only=True)
 
             # No error, reduce tsf
             tsf_max = tsf
-        except sim.FailedOnWarningError:
+        except FailedOnWarningError:
             # No error, increase tsf
             tsf_min = tsf
 
-    _log_info('\n==> RESULT: time_scale_factor={}\n'.format(tsf_max))
+    _logger.important('\n==> RESULT: time_scale_factor=%d\n' % tsf_max)
     return tsf_max
 
 
@@ -58,4 +57,4 @@ if __name__ == '__main__':
 
     # Recreate the same graphs for the same arguments
     random.seed(42)
-    setup_cli(parser, sim_worker)
+    setup_cli_and_run(parser, sim_worker)

@@ -1,14 +1,10 @@
-import importlib
 import os
 import random
 import re
-import sys
 
 import numpy as np
 
-from spinn_front_end_common.utilities import globals_variables
-from spinn_front_end_common.interface.interface_functions \
-    import RouterProvenanceGatherer
+from page_rank.model.tools.utils import install_requirements
 
 
 def _mk_label(n):
@@ -19,9 +15,10 @@ def _mk_edges(node_count, edge_count):
     import tqdm
 
     # Under these constraints we can comply with the requirements below
-    assert node_count <= edge_count <= node_count ** 2, \
-        "Need node_count=%d < edge_count=%d < %d " % (node_count, edge_count,
-                                                      node_count ** 2)
+    assert node_count <= edge_count <= node_count ** 2, "Need node_count=%d " \
+                                                        "< edge_count=%d < %d " % (
+                                                        node_count, edge_count,
+                                                        node_count ** 2)
 
     def _mk_node():
         return random.randint(0, node_count - 1)
@@ -96,51 +93,7 @@ def runner(fn, node_count=None, edge_count=None, **kwargs):
             print('Skipping nx.PowerIterationFailedConvergence graph...')
 
 
-def extract_router_provenance(collect_names=None):
-    if collect_names is None:
-        collect_names = [
-            'total_multi_cast_sent_packets',
-            'total_created_packets',
-            'total_dropped_packets',
-            'total_missed_dropped_packets',
-            'total_lost_dropped_packets'
-        ]
-
-    m = globals_variables.get_simulator()
-
-    router_provenance = RouterProvenanceGatherer()
-    router_prov = router_provenance(m._txrx, m._machine, m._router_tables, True)
-
-    res = dict().fromkeys(collect_names, 0)
-    for item in router_prov:
-        print('{} => {}'.format(item.names, item.value))
-        name = item.names[-1]
-        if name in collect_names:
-            res[name] += int(item.value)
-
-    return res
-
-
-def _install_and_import(package, version):
-    try:
-        importlib.import_module(package)
-    except ImportError:
-        os.system('pip install --user {}=={}'.format(package, version))
-    finally:
-        import site
-        reload(site)
-        globals()[package] = importlib.import_module(package)
-
-
-def hbp_install_requirements():
-    import matplotlib
-    matplotlib.use('Agg')
-    _install_and_import('networkx', '2.1')
-    _install_and_import('prettytable', '0.7.2')
-    _install_and_import('tqdm', '4.23.4')
-
-
-def setup_cli(parser, fn):
+def setup_cli_and_run(parser, fn):
     parser.add_argument('-t', '--timeout', type=int, default=None,
                         help='Simulation timeout. Default is no timeout.')
     parser.add_argument('--hbp', action='store_true', help='Is running on HBP.')
@@ -151,10 +104,12 @@ def setup_cli(parser, fn):
 
     # Cancel simulation after 60seconds
     if timeout is not None:
-        os.system('(sleep {} && kill -15 {})&'.format(timeout, os.getpid()))
+        os.system('(sleep {} && kill -TERM {})&'.format(timeout, os.getpid()))
 
     # Install requirements on HBP
     if hbp:
-        hbp_install_requirements()
+        import matplotlib
+        matplotlib.use('Agg')
+        install_requirements()
 
-    sys.exit(fn(**kwargs))
+    exit(fn(**kwargs))

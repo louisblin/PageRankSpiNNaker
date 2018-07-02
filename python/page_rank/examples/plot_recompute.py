@@ -1,6 +1,6 @@
 import argparse
-import random
 import os
+import random
 
 import numpy as np
 
@@ -10,22 +10,24 @@ from page_rank.examples.plot_graph_size_vs_running_time \
     import do_plot as do_plot_2
 from page_rank.examples.plot_packet_drop_vs_time_scale_factor \
     import do_plot as do_plot_3
-from page_rank.examples.utils import setup_cli
+from page_rank.examples.utils import setup_cli_and_run
 
 
 def replot(csv=None, node_count=None, rm=False, show_out=None):
+    # Load csv graph data
     data = np.loadtxt(csv, delimiter=',')
-    graph_args = dict(show_graph=show_out, save_graph=True)
 
+    # Re-plot graph
     if 'atoms_per_core_vs_running_time' in csv:
-        do_plot_1(data[0], data[1], node_count, **graph_args)
+        do_plot_1(data[0], data[1], node_count, show_graph=show_out)
 
     if 'graph_size_vs_running_time' in csv:
-        do_plot_2(data[0], data[1], data[2], **graph_args)
+        do_plot_2(data[0], data[1], data[2], show_graph=show_out)
 
     if 'packet_drop_vs_time_scale_factor' in csv:
-        do_plot_3(data[:, 0], data[:, 1:], node_count, **graph_args)
+        do_plot_3(data[:, 0], data[:, 1:], node_count, show_graph=show_out)
 
+    # If demanded, remove original graph
     if rm:
         os.unlink(csv)
         os.unlink(csv[:-4] + '.png')
@@ -41,4 +43,4 @@ if __name__ == '__main__':
 
     # Recreate the same graphs for the same arguments
     random.seed(42)
-    setup_cli(parser, replot)
+    setup_cli_and_run(parser, replot)

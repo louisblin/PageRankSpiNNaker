@@ -4,7 +4,7 @@ DIRS = $(BUILDS:%=src/%)
 all: $(DIRS)
 	for d in $(DIRS); do (cd $$d; "$(MAKE)") || exit $$?; done
 
-%.aplx: %
+%.aplx:  %
 	cd $*; "$(MAKE)"
 
 %.aplx: neuron/builds/%

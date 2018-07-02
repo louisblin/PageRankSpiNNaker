@@ -1,8 +1,7 @@
 import argparse
 import random
 
-import page_rank.model.tools.simulation as sim
-from page_rank.examples.utils import runner, setup_cli
+from page_rank.examples.utils import runner, setup_cli_and_run
 
 N_ITER = 25
 RUN_TIME = N_ITER * .1  # multiplied by timestep in ms
@@ -21,6 +20,8 @@ PARAMETERS = {
 
 def _mk_sim_run(edges=None, labels=None, verify=None, pause=None,
                 show_out=None, log_level=None):
+    import page_rank.model.tools.simulation as sim
+
     # Run simulation / report
     with sim.PageRankSimulation(RUN_TIME, edges, labels, PARAMETERS,
                                 log_level=log_level, pause=pause) as s:
@@ -58,4 +59,4 @@ if __name__ == '__main__':
 
     # Recreate the same graphs for the same arguments
     random.seed(42)
-    setup_cli(parser, run)
+    setup_cli_and_run(parser, run)

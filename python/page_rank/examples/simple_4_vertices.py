@@ -1,6 +1,6 @@
 import argparse
 
-from page_rank.examples.utils import setup_cli
+from page_rank.examples.utils import setup_cli_and_run
 
 RUN_TIME = 2.1
 
@@ -25,12 +25,11 @@ def run(show_in=False, show_out=False):
     ############################################################################
     # Run simulation / report
 
-    with PageRankSimulation(RUN_TIME, edges, damping=1-10e-10,
+    with PageRankSimulation(RUN_TIME, edges, damping=1 - 10e-10,
                             pause=not show_out) as sim:
         sim.draw_input_graph(show_graph=show_in, save_graph=True)
         sim.run(verify=True)
         sim.draw_output_graph(show_graph=show_out, save_graph=True)
-        exit(0)
 
 
 if __name__ == '__main__':
@@ -40,4 +39,4 @@ if __name__ == '__main__':
     parser.add_argument('--show-out', action='store_true',
                         help='Display ranks curves output.')
 
-    setup_cli(parser, run)
+    setup_cli_and_run(parser, run)

@@ -4,9 +4,9 @@ import random
 
 import numpy as np
 
-from page_rank.examples.utils import runner, save_plot_data, setup_cli
 from page_rank.examples.tune_time_scale_factor import sim_worker
-from page_rank.model.tools.simulation import graph_visualiser
+from page_rank.examples.utils import runner, save_plot_data, setup_cli_and_run
+from page_rank.model.tools.utils import graph_visualiser
 
 N_ITER = 25
 RUN_TIME = N_ITER * .1  # multiplied by timestep in ms
@@ -15,13 +15,10 @@ TSF_RES = 10
 TSF_MAX = 300
 
 
-def run(node_count=None, core_min=None, core_step=None, core_max=None,
-        show_out=None):
+def run(node_count=None, cores=None, show_out=None):
     import tqdm
 
-    cores = list(range(core_min, core_max+1, core_step))
-
-    # Fit the same graph size of 1, 2, ... 15 cores
+    # Fit the same graph size onto 1, 2, ... 15 cores
     atoms_per_core_list = []
     for n_cores in cores:
         atoms_per_core_list.append(math.ceil(node_count / float(n_cores)))
@@ -63,11 +60,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Plots atoms per core vs. SpiNNaker running times.')
     parser.add_argument('node_count', metavar='NODES', type=int)
-    parser.add_argument('core_min', metavar='CORE_MIN', type=int, default=1)
-    parser.add_argument('core_step', metavar='CORE_STEP', type=int, default=1)
-    parser.add_argument('core_max', metavar='CORE_MAX', type=int, default=15)
+    parser.add_argument('cores', nargs='+', type=int)
     parser.add_argument('-o', '--show-out', action='store_true')
 
     # Recreate the same graphs for the same arguments
     random.seed(42)
-    setup_cli(parser, run)
+    setup_cli_and_run(parser, run)
