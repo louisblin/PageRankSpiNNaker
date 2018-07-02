@@ -301,7 +301,7 @@ class PageRankSimulation:
         plt.title('Black nodes are self-looping', fontsize=8)
 
         if save_graph:
-            plt.savefig('input_graph.png')
+            plt.savefig('input_page_rank_graph.png')
 
     @graph_visualiser
     def draw_output_graph(self, save_graph=False):
@@ -327,4 +327,4 @@ class PageRankSimulation:
         plt.title(ANNOTATION, fontsize=6)
 
         if save_graph:
-            plt.savefig('input_graph.png')
+            plt.savefig('ranks_over_time.png')

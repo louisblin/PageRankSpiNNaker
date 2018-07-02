@@ -90,6 +90,8 @@ def silence_output(enable=True, pipe_to=os.devnull):
         try:
             yield new_target  # Execute user code
         finally:
+            sys.stdout.close()
+            sys.stderr.close()
             sys.stdout = old_stdout
             sys.stderr = old_stderr
 
