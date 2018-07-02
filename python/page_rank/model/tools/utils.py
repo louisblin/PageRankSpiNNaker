@@ -2,6 +2,7 @@ import errno
 import logging
 import os
 import signal
+import site
 import sys
 from contextlib import contextmanager
 from functools import wraps
@@ -106,6 +107,7 @@ def install_requirements(requirements_file=None):
             os.path.join(os.path.dirname(__file__), '../requirements.txt'))
 
     os.system('pip install --user -r "{}"'.format(requirements_file))
+    reload(site)
 
 
 def gui_timeout(seconds=10, error_message=os.strerror(errno.ETIME)):
@@ -141,7 +143,7 @@ def graph_visualiser(func):
         """
         :param show_graph: whether to display the graph, default is False
         """
-        import matplotlib.pylot as plt
+        import matplotlib.pyplot as plt
 
         show_graph = kwargs.pop('show_graph', False)
 
