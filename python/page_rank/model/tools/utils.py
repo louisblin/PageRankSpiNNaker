@@ -80,20 +80,21 @@ def silence_output(enable=True, pipe_to=os.devnull):
     :param enable: if False, will disable silencing (i.e. normally output)
     :param pipe_to: the file to which captured outputs will be piped to.
     """
-    if not enable:
-        yield  # Execute user code
-        return
+    def _no_op():
+        yield
 
-    with open(pipe_to, "w") as new_target:
+    def _silencer():
+        new_target = open(pipe_to, "w")
         old_stdout, sys.stdout = sys.stdout, new_target
         old_stderr, sys.stderr = sys.stderr, new_target
         try:
             yield new_target  # Execute user code
         finally:
-            sys.stdout.close()
-            sys.stderr.close()
+            new_target.close()
             sys.stdout = old_stdout
             sys.stderr = old_stderr
+
+    return _silencer() if enable else _no_op()
 
 
 def install_requirements(requirements_file=None):

@@ -1,10 +1,14 @@
 import os
 import random
 import re
+import sys
+from multiprocessing import Process
+from time import sleep
 
 import numpy as np
 
-from page_rank.model.tools.utils import install_requirements
+from page_rank.model.tools.utils import install_requirements, \
+    PageRankNoConvergence, getLogger
 
 
 def _mk_label(n):
@@ -15,10 +19,9 @@ def _mk_edges(node_count, edge_count):
     import tqdm
 
     # Under these constraints we can comply with the requirements below
-    assert node_count <= edge_count <= node_count ** 2, "Need node_count=%d " \
-                                                        "< edge_count=%d < %d " % (
-                                                        node_count, edge_count,
-                                                        node_count ** 2)
+    assert node_count <= edge_count <= node_count ** 2, \
+        "Need node_count=%d < edge_count=%d < %d " % (node_count,
+        edge_count, node_count ** 2)
 
     def _mk_node():
         return random.randint(0, node_count - 1)
@@ -63,14 +66,15 @@ def mk_path(path):
     return path
 
 
-def save_plot_data(path, raw_data):
+def save_plot_data(path, data):
     import matplotlib.pyplot as plt
 
     save_dir = mk_path(path)
     i = max(map(int, [f[4:-4] for f in os.listdir(save_dir)])) + 1
-    np.savetxt(os.path.join(save_dir, 'run-%d.csv' % i), raw_data,
-               delimiter=',')
+
+    np.savetxt(os.path.join(save_dir, 'run-%d.csv' % i), data, delimiter=',')
     plt.savefig(os.path.join(save_dir, 'run-%d.png' % i))
+
     print('\n>>> Results saved at %s/run-%d.*' % (save_dir, i))
 
 
@@ -82,15 +86,13 @@ def mk_graph(node_count, edge_count):
 
 
 def runner(fn, node_count=None, edge_count=None, **kwargs):
-    import networkx as nx
-
     while True:
         edges, labels = mk_graph(node_count, edge_count)
         try:
             return fn(edges=edges, labels=labels, **kwargs)
         # Redo iteration because generated graph did not converge
-        except nx.PowerIterationFailedConvergence:
-            print('Skipping nx.PowerIterationFailedConvergence graph...')
+        except PageRankNoConvergence:
+            print('Skipping PageRankNoConvergence graph...')
 
 
 def setup_cli_and_run(parser, fn):
@@ -102,14 +104,26 @@ def setup_cli_and_run(parser, fn):
     timeout = kwargs.pop('timeout')
     hbp = kwargs.pop('hbp')
 
-    # Cancel simulation after 60seconds
-    if timeout is not None:
-        os.system('(sleep {} && kill -TERM {})&'.format(timeout, os.getpid()))
-
     # Install requirements on HBP
     if hbp:
         import matplotlib
         matplotlib.use('Agg')
         install_requirements()
 
-    exit(fn(**kwargs))
+    # Set timer to terminate simulation after `timeout` seconds
+    p = None
+    if timeout is not None:
+        def worker(pid):
+            sleep(timeout)
+            getLogger().error('Timing out after {} seconds!'.format(timeout))
+            os.system('kill -TERM %d' % pid)
+        p = Process(target=worker, args=(os.getpid(),))
+        p.start()
+
+    # Run simulation
+    try:
+        exit(fn(**kwargs))
+    finally:
+        # Cancel timer
+        if p is not None:
+            p.terminate()

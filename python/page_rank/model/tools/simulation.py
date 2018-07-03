@@ -1,3 +1,4 @@
+import sys
 import logging
 import matplotlib.pyplot as plt
 
@@ -44,6 +45,24 @@ def _gen_sim_edges(edges, labels, sim_vertices):
     return [(labels_to_ids[src], labels_to_ids[tgt]) for src, tgt in edges]
 
 
+def _validate_graph_structure(edges, labels, damping):
+    # Ensure to duplicate edges
+    size_diff = len(edges) - len(set(edges))
+    if size_diff != 0:
+        raise ValueError("Found %d forbidden duplicate edges." % size_diff)
+
+    # Ensure all nodes connected (no dangling nodes)
+    if labels:
+        size_diff = len(labels) - len(_gen_labels(edges))
+        if size_diff != 0:
+            raise ValueError("Found %d dangling nodes (extra 'labels' "
+                             "not used in 'edges')." % size_diff)
+
+    # Ensure damping factor has a valid range
+    if not (0 <= damping < 1):
+        raise ValueError("Damping factor '%.02f' not in [0,1)." % damping)
+
+
 class PageRankSimulation:
 
     def __init__(self, run_time, edges, labels=None, parameters=None,
@@ -65,7 +84,7 @@ class PageRankSimulation:
         :param fail_on_warning: throw an exception if simulation throws warnings
         :param spinnaker_adapter: adapter to interact with the neural model
         """
-        self._validate_graph_structure(edges, labels, damping)
+        _validate_graph_structure(edges, labels, damping)
 
         # Simulation parameters
         self._run_time = run_time
@@ -85,7 +104,7 @@ class PageRankSimulation:
         self._sim_ranks = None
         self._sim_convergence = None
         self._input_networkx_repr = None
-        self._simulation_has_ran = True
+        self._simulation_has_ran = False
 
         # Numpy printing with some precision and no scientific notation
         np.set_printoptions(suppress=True, precision=FLOAT_PRECISION)
@@ -112,23 +131,6 @@ class PageRankSimulation:
     #
     # Private functions, internal helpers
     #
-
-    def _validate_graph_structure(self, edges, labels, damping):
-        # Ensure to duplicate edges
-        size_diff = len(edges) - len(set(edges))
-        if size_diff != 0:
-            raise ValueError("Found %d forbidden duplicate edges." % size_diff)
-
-        # Ensure all nodes connected (no dangling nodes)
-        if labels:
-            size_diff = len(labels) - len(_gen_labels(edges))
-            if size_diff != 0:
-                raise ValueError("Found %d dangling nodes (extra 'labels' "
-                                 "not used in 'edges')." % size_diff)
-
-        # Ensure damping factor has a valid range
-        if not (0 <= damping < 1):
-            raise ValueError("Damping factor '%.02f' not in [0,1)." % damping)
 
     def _get_damping_factor(self):
         # Ensures float is encoded in fixed-point without precision loss
@@ -160,17 +162,17 @@ class PageRankSimulation:
             ranks = self._spinnaker_adapter.extract_ranks()
 
             # Compute convergence
-            xlast = ranks[0]
-            N = len(xlast)
+            x_last = ranks[0]
+            N = len(x_last)
             convergence = len(ranks)
 
             for it, x in enumerate(ranks[1:]):
                 err = sum([abs(x_i - x_last_i)
-                           for x_i, x_last_i in zip(x, xlast)])
+                           for x_i, x_last_i in zip(x, x_last)])
                 if err < N * TOL:
                     convergence = it + 1  # since we began at index #1
                     break
-                xlast = x
+                x_last = x
 
             # Copy first convergence row to all remaining
             for i in range(convergence + 1, len(ranks)):
@@ -235,7 +237,7 @@ class PageRankSimulation:
         :return: bool, correctness of the simulation results
         """
 
-        with silence_output(enable=self._logger.isEnabledFor(logging.INFO)):
+        with silence_output(enable=not self._logger.isEnabledFor(logging.INFO)):
             # Setup simulation
             self._spinnaker_adapter.simulation_setup(**self._parameters)
 

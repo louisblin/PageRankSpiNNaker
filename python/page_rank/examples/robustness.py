@@ -53,8 +53,7 @@ if __name__ == '__main__':
                         help='Pause after each runs')
     parser.add_argument('-o', '--show-out', action='store_true',
                         help='Display ranks curves output')
-    parser.add_argument('-l', '--log-level', type=int,
-                        default=sim.LOG_HIGHLIGHTS,
+    parser.add_argument('-l', '--log-level', type=int, default=25,
                         help='The integer log level to set')
 
     # Recreate the same graphs for the same arguments

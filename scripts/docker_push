@@ -2,18 +2,22 @@
 
 set -eu
 
-echo -n "Push images? "if
+function has_image_locally {
+    [[ "`docker images -q $1`" != "" ]] && return 0 || return 1
+}
 
-# If this is set
-[[ ${FYP_SKIP_DOCKER_BUILD+x} ]] && echo "up to date" && exit 0
-echo "needs push"
+function push_image {
+    echo "Pushing ${1} image '${2}'..."
+    docker push "${2}"
+}
+
+
+echo -n "Push images? "
 
 echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
 
 IMAGE_PROD="${DOCKER_USERNAME}/${DOCKER_IMAGE}:${DOCKER_TAG_PROD}"
-echo "Pushing prod image '${IMAGE_PROD}'..."
-docker push "${IMAGE_PROD}"
-
 IMAGE_DEV="${DOCKER_USERNAME}/${DOCKER_IMAGE}:${DOCKER_TAG_DEV}"
-echo "Pushing dev image '${IMAGE_DEV}'..."
-docker push "${IMAGE_DEV}"
+
+has_image_locally ${IMAGE_DEV}  && push_image "dev" ${IMAGE_DEV}
+has_image_locally ${IMAGE_PROD} && push_image "prod" ${IMAGE_PROD}
