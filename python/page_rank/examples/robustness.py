@@ -33,7 +33,7 @@ def _mk_sim_run(edges=None, labels=None, verify=None, pause=None,
 def run(runs=None, **kwargs):
     import tqdm
 
-    results = [runner(_mk_sim_run, runs, **kwargs)
+    results = [runner(_mk_sim_run, **kwargs)
                for _ in tqdm.tqdm(range(runs), total=runs)]
     correct = sum(map(int, results))
     print('Finished robustness test with %d/%d passed.' % (correct, runs))

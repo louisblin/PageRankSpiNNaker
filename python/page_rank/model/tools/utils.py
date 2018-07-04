@@ -9,7 +9,7 @@ from functools import wraps
 
 from page_rank.model.tools.fixed_point import FXfamily
 
-ITER_BITS = 2  # see c_models/src/neuron/in_messages.h
+ITER_BITS = 2  # see c_models/src/neuron/messages/in_messages.h
 LOG_IMPORTANT = (logging.INFO + logging.WARNING) // 2
 
 
@@ -52,8 +52,8 @@ def getLogger(name=__name__, log_level=logging.INFO):
         return logger
 
     # Log formatting
-    fmt = '%(asctime)s [%(levelname)-9s] %(module)-18s: %(message)s'
-    fmt_date = '%H:%M:%S'
+    fmt = '%(asctime)s %(levelname)s: %(message)s'
+    fmt_date = '%Y-%m-%d %H:%M:%S'
     formatter = logging.Formatter(fmt, fmt_date)
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)
@@ -90,6 +90,7 @@ def silence_output(enable=True, pipe_to=os.devnull):
         try:
             yield new_target  # Execute user code
         finally:
+            new_target.flush()
             new_target.close()
             sys.stdout = old_stdout
             sys.stderr = old_stderr

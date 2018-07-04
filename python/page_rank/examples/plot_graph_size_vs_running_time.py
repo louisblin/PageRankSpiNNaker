@@ -1,5 +1,4 @@
 import argparse
-import logging
 import random
 import time
 
@@ -7,19 +6,18 @@ import numpy as np
 
 from page_rank.examples.utils import runner, save_plot_data, setup_cli_and_run
 from page_rank.model.tools.utils import graph_visualiser, LOG_IMPORTANT, \
-    PageRankNoConvergence
+    PageRankNoConvergence, getLogger
 
 N_ITER = 25
 RUN_TIME = N_ITER * .1  # multiplied by timestep in ms
-TSF_MIN = 10
-TSF_RES = 200
+TSF_MIN = 20
+TSF_RES = 5
 
-
-def _log_info(*args, **kwargs):
-    logging.warning(*args, **kwargs)
+_logger = getLogger()
 
 
 def _sim_worker(edges=None, labels=None, skip_python=None, **tsf_kwargs):
+    from page_rank.model.tools.simulation import PageRankSimulation
     from page_rank.examples.tune_time_scale_factor import sim_worker
 
     tsf = sim_worker(edges, labels, verify=False, pause=False, **tsf_kwargs)
@@ -28,9 +26,8 @@ def _sim_worker(edges=None, labels=None, skip_python=None, **tsf_kwargs):
     if skip_python:
         return tsf, pyt
 
-    import page_rank.model.tools.simulation as sim
     params = dict(time_scale_factor=tsf)
-    with sim.PageRankSimulation(
+    with PageRankSimulation(
             RUN_TIME, edges, labels, params, log_level=LOG_IMPORTANT) as s:
         # Init graph for PR, and compute
         s.run()
@@ -63,7 +60,7 @@ def run(cores=None, show_out=None):
         # # Try to find tsf as fast as possible
         # for i in range(10):
         #     tsf_max = tsf + 2 ** i * 100
-        #     _log_info('[cores={}] Checking range ({}, {})\n'.format(n_core, tsf, tsf_max))
+        #     _logger.important('[cores={}] Checking range ({}, {})\n'.format(n_core, tsf, tsf_max))
         #     tsf, pyt = runner(
         #         _sim_worker, node_count=node_count, edge_count=edge_count,
         #         tsf_min=tsf, tsf_res=TSF_RES, tsf_max=tsf_max)
@@ -73,9 +70,8 @@ def run(cores=None, show_out=None):
         # Try to find tsf as fast as possible
         for i in range(15):
             tsf_max = tsf_min + 2 ** i * 100
-            _log_info(
-                '[cores={}] Checking range ({}, {})\n'.format(n_core, tsf_min,
-                                                              tsf_max))
+            _logger.important(
+                '[cores=%d] Check range (%d,%d)\n' % (n_core, tsf_min, tsf_max))
             tsf, pyt = runner(
                 _sim_worker, node_count=node_count, edge_count=edge_count,
                 tsf_min=tsf_max - TSF_RES - 1, tsf_res=TSF_RES, tsf_max=tsf_max)
@@ -83,8 +79,8 @@ def run(cores=None, show_out=None):
                 break
             tsf_min = tsf
 
-        _log_info('[cores={}] Found range ({}, {})\n'.format(n_core, tsf_min,
-                                                             tsf_max))
+            _logger.important(
+                '[cores=%d] Found range (%d,%d)\n' % (n_core, tsf_min, tsf_max))
         tsf, pyt = runner(
             _sim_worker, node_count=node_count, edge_count=edge_count,
             tsf_min=tsf_min, tsf_res=TSF_RES, tsf_max=tsf_max)
@@ -92,11 +88,10 @@ def run(cores=None, show_out=None):
         n_sizes.append(node_count + edge_count)
         tsfs.append(tsf)
         pyts.append(pyt)
-        _log_info(
+        _logger.important(
             '[cores={}] CURR =>>\n{}'.format(n_core, np.array([n_sizes, tsfs])))
 
-        do_plot(n_sizes, tsfs, pyts, show_graph=show_out, save_graph=True)
-        exit(0)  # TODO: remove me
+        do_plot(n_sizes, tsfs, pyts, show_graph=show_out)
 
 
 @graph_visualiser
@@ -108,7 +103,7 @@ def do_plot(n_sizes, tsfs, pyts):
     n_sizes = np.array(n_sizes) / (255 + 255 * 10)  # size => cores
     tsfs = np.array(tsfs) / float(tsfs[0])
     # pyts = np.array(pyts) / float(pyts[0])
-    _log_info('\n=== DATA [n_sizes, tsfs, pyts] ===\n{}'.format(
+    _logger.important('\n\n=== DATA [n_sizes, tsfs, pyts] ===\n{}'.format(
         np.array([n_sizes, tsfs, pyts])))
 
     # Python runtime with with trend line (linear fitting as PR is O(|V|+|E|))

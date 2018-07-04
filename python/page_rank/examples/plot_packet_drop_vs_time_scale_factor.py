@@ -17,11 +17,11 @@ PROVENANCE_ITEMS = [
 
 
 def _sim_worker(edges=None, labels=None, tsf=None):
-    import page_rank.model.tools.simulation as sim
+    from page_rank.model.tools.simulation import PageRankSimulation
 
     params = dict(time_scale_factor=tsf)
-    with sim.PageRankSimulation(RUN_TIME, edges, labels, params,
-                                log_level=sim.LOG_HIGHLIGHTS) as s:
+    with PageRankSimulation(RUN_TIME, edges, labels, params,
+                            log_level=25) as s:
         s.run()
         prov = extract_router_provenance(PROVENANCE_ITEMS)
 
@@ -35,8 +35,8 @@ def run(node_count=None, tsf_min=None, tsf_step=None, tsf_max=None,
     edge_count = node_count * 10
     tsfs = list(range(tsf_min, tsf_max + 1, tsf_step))
     prov_list = [
-        runner(_sim_worker, node_count=node_count, edge_count=edge_count,
-               tsf=tsf)
+        runner(
+            _sim_worker, node_count=node_count, edge_count=edge_count, tsf=tsf)
         for tsf in tqdm.tqdm(tsfs)
     ]
 

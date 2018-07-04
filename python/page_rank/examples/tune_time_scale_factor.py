@@ -8,7 +8,7 @@ from page_rank.model.tools.utils import getLogger, FailedOnWarningError, \
 N_ITER = 25
 RUN_TIME = N_ITER * .1  # multiplied by time step in ms
 
-_logger = getLogger(__name__)
+_logger = getLogger()
 
 
 def sim_worker(edges=None, labels=None, verify=None, pause=None,
@@ -21,7 +21,7 @@ def sim_worker(edges=None, labels=None, verify=None, pause=None,
             tsf = tsf_min + (tsf_max - tsf_min) // 2
 
             # Run simulation / report
-            _logger.important('\n|> Running w/ time_scale_factor=%d' % tsf)
+            _logger.important('|> Running w/ time_scale_factor=%d\n' % tsf)
             params = dict(time_scale_factor=tsf)
             with PageRankSimulation(
                     RUN_TIME, edges, labels, params, fail_on_warning=True,
@@ -34,7 +34,7 @@ def sim_worker(edges=None, labels=None, verify=None, pause=None,
             # No error, increase tsf
             tsf_min = tsf
 
-    _logger.important('\n==> RESULT: time_scale_factor=%d\n' % tsf_max)
+    _logger.important('==> RESULT: time_scale_factor=%d\n' % tsf_max)
     return tsf_max
 
 

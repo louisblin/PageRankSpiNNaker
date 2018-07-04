@@ -1,7 +1,6 @@
+import fnmatch
 import os
 import random
-import re
-import sys
 from multiprocessing import Process
 from time import sleep
 
@@ -50,7 +49,7 @@ def _mk_edges(node_count, edge_count):
 def mk_path(path):
     path = os.path.realpath(os.path.join(os.path.dirname(__file__), path))
 
-    if re.match('.*\..*', path):
+    if fnmatch.fnmatch(path, '*.*'):
         dir_path = os.path.dirname(path)
     else:
         dir_path = path
@@ -70,7 +69,7 @@ def save_plot_data(path, data):
     import matplotlib.pyplot as plt
 
     save_dir = mk_path(path)
-    i = max(map(int, [f[4:-4] for f in os.listdir(save_dir)])) + 1
+    i = max(map(int, [f[4:-4] for f in os.listdir(save_dir)] + [0])) + 1
 
     np.savetxt(os.path.join(save_dir, 'run-%d.csv' % i), data, delimiter=',')
     plt.savefig(os.path.join(save_dir, 'run-%d.png' % i))
@@ -104,7 +103,7 @@ def setup_cli_and_run(parser, fn):
     timeout = kwargs.pop('timeout')
     hbp = kwargs.pop('hbp')
 
-    # Install requirements on HBP
+    # Install requirements missing on HBP
     if hbp:
         import matplotlib
         matplotlib.use('Agg')
@@ -114,9 +113,12 @@ def setup_cli_and_run(parser, fn):
     p = None
     if timeout is not None:
         def worker(pid):
+            getLogger().important('Will time out in {} sec...'.format(timeout))
             sleep(timeout)
-            getLogger().error('Timing out after {} seconds!'.format(timeout))
+
+            getLogger().error('Timing out after {} sec!'.format(timeout))
             os.system('kill -TERM %d' % pid)
+
         p = Process(target=worker, args=(os.getpid(),))
         p.start()
 
