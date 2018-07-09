@@ -25,7 +25,7 @@ def sim_worker(edges=None, labels=None, verify=None, pause=None,
             params = dict(time_scale_factor=tsf)
             with PageRankSimulation(
                     RUN_TIME, edges, labels, params, fail_on_warning=True,
-                    pause=pause, log_level=LOG_IMPORTANT) as s:
+                    pause=pause, log_level=20) as s:
                 s.run(verify=verify, diff_only=True)
 
             # No error, reduce tsf

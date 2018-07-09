@@ -1,27 +1,54 @@
-# FYP
+# Page Rank on SpiNNaker
 
-Available at: https://github.com/louisblin/FYP.
+[![Build Status](https://travis-ci.com/louisblin/PageRankSpiNNaker.svg?branch=master)](https://travis-ci.com/louisblin/PageRankSpiNNaker)
 
-Final Year Project investigating alternative applications of the SpiNNaker 
-hardware. Currently, the focus is on graph based algorithms such as Page Rank.
+Master's Thesis project at Imperial College London investigating alternative 
+applications for the SpiNNaker neuromorphic hardware. The aim is to demonstrate
+that the machine offers better scaling opportunities for stateful and massively-
+parallel algorithms, such as Page Rank.
+
+
+This repository constitutes the main contribution of the project, with a 
+simulation framework to seamlessly run Page Rank computations on SpiNNaker.
+
+Presentation slides available 
+[here](https://www.slideshare.net/LouisBlin/page-rank-on-spinnaker).
+
+## Project structure
+
+```
+.
+├── docker             // Tools as Docker images
+├── python             // Source root
+│   └── page_rank      // Python namespacing
+│       ├── examples   // User code
+│       ├── model      // Framework implementation
+│       │   ├── Makefile          // Builds project 
+│       │   ├── c_models          // C - Execution on SpiNNaker
+│       │   ├── python_models     // Python - Neuron model specification
+│       │   ├── requirements.txt
+│       │   └── tools             // Python - High-level Page Rank specification 
+│       └── tests      // Testing framework code
+└── scripts            // Docker / runners utilities 
+```
+
 
 ## Tooling w/ Docker images
 
-[![Build Status](https://travis-ci.com/louisblin/FYP.svg?token=5ZNW4DKhuozscA1A9CAy&branch=master)](https://travis-ci.com/louisblin/FYP)
+Environment management is complex for this project so the following Docker 
+images were built to ease development w/ SpiNNaker:
 
-We build the following docker images to facilitate the development w/ sPyNNaker:
+- [**louisleblin/pynn8**](https://hub.docker.com/r/louisleblin/pynn8/): user
+ install of sPyNNaker8 - to run spiking neural network simulations.
+- [**louisleblin/toolchain:v4.0.0**](https://hub.docker.com/r/louisleblin/toolchain-v2016/): developer install of the version 4.0.0 
+of the development toolchain - to develop the Page Rank framework.
+- [**louisleblin/toolchain:v2016.001**](https://hub.docker.com/r/louisleblin/toolchain-v2016/): same w/ version 2016.001 - to run older
+ tutorials based on this version.
 
-- [**louisleblin/pynn8**](https://hub.docker.com/r/louisleblin/pynn8/):
-environment to run the PyNN 0.8 interface to sPyNNaker
-- [**louisleblin/toolchain:v2016.001**](https://hub.docker.com/r/louisleblin/toolchain-v2016/):
-environment for SpiNNaker Graph Front End Developer toolchain v2016.001
-- [**louisleblin/toolchain:v4.0.0**](https://hub.docker.com/r/louisleblin/toolchain-v2016/):
-same, but v4.0.0
+These three images are available under the two releases, accessible via a 
+specific tag:
 
-These images are available under the two versions, accessible via a specific 
-tag:
-
-- **prod** version, via _`<img>`_ for the slim version of the image
+- **prod** version, via _`<img>`_ for the slim release of the image
 - **dev** version, via _`<img>:[<tag>-]dev`_ which adds some development tools 
 such as
 `vim` and loads a custom `zsh` / `oh-my-zsh` shell - see
@@ -36,6 +63,10 @@ follows:
 ./scripts/start_container louisleblin/toolchain:v4.0.0-dev --volume $PWD/python:/app/w
 ```
 
+Consider modifying `./scripts/start_container` on:
+-   network config to interface with SpiNNaker
+-   X11 to display graphics from the container over SSH   
+
 ##### Developing
 
 Consider sourcing `./scripts/set_env` in your `.<shell>rc` to add the scripts 
@@ -46,7 +77,7 @@ to your `PATH`.
 
 ### Page Rank Model (`python/page_rank/model`)
 
-We adapt the existing `SpiNNakerManchester/sPyNNaker` spiking neural network 
+We adapt the existing [`SpiNNakerManchester/sPyNNaker`](https://github.com/SpiNNakerManchester/sPyNNaker) spiking neural network 
 framework to support Page Rank simulations. Neurons become vertices, synapses 
 are now message dispatchers that propagate rank updates along edges. The model 
 is constituted of:
@@ -62,7 +93,9 @@ To run an `python/page_rank/examples/<example_name>.py`, use:
 
 ```sh
 # Starts the toolchain container in interactive mode
-./scripts/start_container louisleblin/toolchain:v4.0.0-dev --volume $PWD/python:/app/w
+./scripts/start_container \
+    louisleblin/toolchain:v4.0.0-dev \
+    --volume $PWD/python:/app/w
 
 ...
 
@@ -74,10 +107,21 @@ make <example_name>
 or as a one-liner:
 
 ```sh
-./scripts/start_container louisleblin/toolchain:v4.0.0-dev --volume $PWD/python:/app/w --rm --exec "make -C page_rank/examples <example_name>"
+./scripts/start_container \
+    louisleblin/toolchain:v4.0.0-dev \
+    --volume $PWD/python:/app/w --rm \
+    --exec "make -C page_rank/examples <example_name>"
 ```
 
-##### Page Rank on [`simple_4_vertices`](python/page_rank/examples/simple_4_vertices.py)
+##### Minimal example w/ [`simple_4_vertices`](python/page_rank/examples/simple_4_vertices.py)
+
+```sh
+# Command
+./scripts/start_container \
+    louisleblin/toolchain:v4.0.0-dev \
+    --volume $PWD/python:/app/w --rm \
+    --exec "make -C page_rank/examples simple_4_vertices --show-in --show-out"
+```
 
 The following caption shows how the `toolchain:v4.0.0-dev` can be used to 
 compute Page Rank on a simple graph as described in 
@@ -86,7 +130,7 @@ graph is displayed to visually confirm its structure. Then, Page Rank is
 computed on SpiNNaker and an output graph is displayed, showing the evolution 
 over time of the rank of each node.
 
-Additionnally, a Python implementation of Page Rank runs on the same graph and 
+Additionally, a Python implementation of Page Rank runs on the same graph and 
 is used to ensure the results obtained are correct.
 
 ![Simple Page Rank](docs/page_rank_simple.gif)
