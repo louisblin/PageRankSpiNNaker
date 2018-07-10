@@ -9,29 +9,28 @@ from page_rank.model.tools.utils import graph_visualiser, LOG_IMPORTANT, \
     PageRankNoConvergence, getLogger
 
 N_ITER = 25
-RUN_TIME = N_ITER * .1  # multiplied by timestep in ms
+RUN_TIME = N_ITER * .1  # multiplied by time step in ms
 TSF_MIN = 20
-TSF_RES = 5
+TSF_RES = 10
 
 _logger = getLogger()
 
 
-def _sim_worker(edges=None, labels=None, skip_python=None, **tsf_kwargs):
+def _sim_worker(edges=None, labels=None, skip_python=False, **tsf_kwargs):
     from page_rank.model.tools.simulation import PageRankSimulation
     from page_rank.examples.tune_time_scale_factor import sim_worker
 
     tsf = sim_worker(edges, labels, verify=False, pause=False, **tsf_kwargs)
     pyt = 0
 
+    # Skip python run (takes too long on large graphs)
     if skip_python:
         return tsf, pyt
 
+    # Compute python Page Rank running time
     params = dict(time_scale_factor=tsf)
     with PageRankSimulation(
             RUN_TIME, edges, labels, params, log_level=LOG_IMPORTANT) as s:
-        # Init graph for PR, and compute
-        s.run()
-        s.draw_input_graph(show_graph=False)
         start = time.time()
         try:
             # Ensure all iterations will be completed with a unrealistic tol
@@ -44,69 +43,50 @@ def _sim_worker(edges=None, labels=None, skip_python=None, **tsf_kwargs):
     return tsf, pyt
 
 
-def run(cores=None, show_out=None):
+def run(cores=None, show_out=None, skip_python_from=None):
     import tqdm
 
     n_sizes = []
     tsfs = []
     pyts = []
-    tsf_max = TSF_MIN
-    tsf_min = TSF_MIN
+    tsf = TSF_MIN
 
     for n_core in tqdm.tqdm(cores):
         node_count = 255 * n_core
         edge_count = 10 * node_count
+        skip_python = n_core >= skip_python_from
 
-        # # Try to find tsf as fast as possible
-        # for i in range(10):
-        #     tsf_max = tsf + 2 ** i * 100
-        #     _logger.important('[cores={}] Checking range ({}, {})\n'.format(n_core, tsf, tsf_max))
-        #     tsf, pyt = runner(
-        #         _sim_worker, node_count=node_count, edge_count=edge_count,
-        #         tsf_min=tsf, tsf_res=TSF_RES, tsf_max=tsf_max)
-        #     if tsf + TSF_RES < tsf_max:
-        #         break
-
-        # Try to find tsf as fast as possible
-        for i in range(15):
-            tsf_max = tsf_min + 2 ** i * 100
-            _logger.important(
-                '[cores=%d] Check range (%d,%d)\n' % (n_core, tsf_min, tsf_max))
-            tsf, pyt = runner(
-                _sim_worker, node_count=node_count, edge_count=edge_count,
-                tsf_min=tsf_max - TSF_RES - 1, tsf_res=TSF_RES, tsf_max=tsf_max)
-            if tsf < tsf_max:
-                break
-            tsf_min = tsf
-
-            _logger.important(
-                '[cores=%d] Found range (%d,%d)\n' % (n_core, tsf_min, tsf_max))
         tsf, pyt = runner(
             _sim_worker, node_count=node_count, edge_count=edge_count,
-            tsf_min=tsf_min, tsf_res=TSF_RES, tsf_max=tsf_max)
+            tsf_min=tsf, tsf_res=TSF_RES, skip_python=skip_python)
 
-        n_sizes.append(node_count + edge_count)
+        n_sizes.append(n_core)
         tsfs.append(tsf)
         pyts.append(pyt)
-        _logger.important(
-            '[cores={}] CURR =>>\n{}'.format(n_core, np.array([n_sizes, tsfs])))
+        _logger.important('[cores={}] [n_sizes, tsfs] =\n{}'.format(
+            n_core, np.array([n_sizes, tsfs])))
 
-        do_plot(n_sizes, tsfs, pyts, show_graph=show_out)
+    do_plot(n_sizes, tsfs, pyts, show_graph=show_out)
 
 
 @graph_visualiser
 def do_plot(n_sizes, tsfs, pyts):
     import matplotlib.pyplot as plt
 
-    # Normalise data
     raw_data = np.array([n_sizes, tsfs, pyts])
-    n_sizes = np.array(n_sizes) / (255 + 255 * 10)  # size => cores
+
+    # Normalise data
+    n_sizes = np.array(n_sizes)
     tsfs = np.array(tsfs) / float(tsfs[0])
-    # pyts = np.array(pyts) / float(pyts[0])
+    if float(pyts[0]) != 0:
+        pyts = np.array(pyts) / float(pyts[0])
+
     _logger.important('\n\n=== DATA [n_sizes, tsfs, pyts] ===\n{}'.format(
         np.array([n_sizes, tsfs, pyts])))
 
-    # Python runtime with with trend line (linear fitting as PR is O(|V|+|E|))
+    # If python values are missing (from skip_python_from option), assume big
+    # scales (log-log graph) and complete the curve with a trend line (linear
+    # fitting as PR is O(|V|+|E|))
     if any(np.where(pyts == 0)[0]):
         idx = np.where(pyts == 0)[0][0]
         valid_n_sizes, valid_pyts = n_sizes[:idx], pyts[:idx]
@@ -127,6 +107,7 @@ def do_plot(n_sizes, tsfs, pyts):
 
         speedup = (p(n_sizes) / tsfs).mean()
         plt.grid(True)
+    # Otherwise, use a normal graph
     else:
         plt.plot(n_sizes, pyts, 'r-', label="Python running time")
         plt.plot(n_sizes, tsfs, 'b-', label="SpiNNaker running time")
@@ -150,6 +131,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Plots graph size vs. Python / SpiNNaker running times.')
     parser.add_argument('cores', nargs='+', type=int)
+    parser.add_argument('-s', '--skip-python-from', type=int,
+                        help='Core value to skip python from')
     parser.add_argument('-o', '--show-out', action='store_true')
 
     # Recreate the same graphs for the same arguments

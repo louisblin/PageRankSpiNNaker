@@ -115,8 +115,9 @@ or as a one-liner:
 
 ##### Minimal example w/ [`simple_4_vertices`](python/page_rank/examples/simple_4_vertices.py)
 
+Command:
+
 ```sh
-# Command
 ./scripts/start_container \
     louisleblin/toolchain:v4.0.0-dev \
     --volume $PWD/python:/app/w --rm \

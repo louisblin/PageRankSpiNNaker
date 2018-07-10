@@ -10,18 +10,17 @@ from page_rank.model.tools.utils import graph_visualiser, \
 N_ITER = 25
 RUN_TIME = N_ITER * .1  # multiplied by timestep in ms
 PROVENANCE_ITEMS = [
-    'total_dropped_packets',  # Network overflow
+    'total_dropped_packets',       # Network overflow
     'total_lost_dropped_packets',  # MC packets effectively dumped
-    'Dumped_from_a_processor',  # CPU overflow
+    'Dumped_from_a_processor',     # CPU overflow
 ]
 
 
-def _sim_worker(edges=None, labels=None, tsf=None):
+def _sim_wrkr(edges=None, labels=None, tsf=None):
     from page_rank.model.tools.simulation import PageRankSimulation
 
     params = dict(time_scale_factor=tsf)
-    with PageRankSimulation(RUN_TIME, edges, labels, params,
-                            log_level=25) as s:
+    with PageRankSimulation(RUN_TIME, edges, labels, params, log_level=25) as s:
         s.run()
         prov = extract_router_provenance(PROVENANCE_ITEMS)
 
@@ -35,8 +34,7 @@ def run(node_count=None, tsf_min=None, tsf_step=None, tsf_max=None,
     edge_count = node_count * 10
     tsfs = list(range(tsf_min, tsf_max + 1, tsf_step))
     prov_list = [
-        runner(
-            _sim_worker, node_count=node_count, edge_count=edge_count, tsf=tsf)
+        runner(_sim_wrkr, node_count=node_count, edge_count=edge_count, tsf=tsf)
         for tsf in tqdm.tqdm(tsfs)
     ]
 
@@ -46,6 +44,14 @@ def run(node_count=None, tsf_min=None, tsf_step=None, tsf_max=None,
 @graph_visualiser
 def do_plot(tsfs, prov_list, node_count):
     import matplotlib.pyplot as plt
+
+    # Need a 2D matrix to save as csv - copy node_count
+    if hasattr(node_count, '__len__'):
+        node_count_row = node_count
+        node_count = node_count[0]
+    else:
+        node_count_row = [node_count] * len(tsfs)
+    raw_data = np.array([tsfs, prov_list, node_count_row])
 
     # Normalise data
     x = np.array([tsfs]).reshape(-1, 1)
@@ -65,7 +71,7 @@ def do_plot(tsfs, prov_list, node_count):
                "255 vertices / core, 15 cores / chip").format(
         node_count, 10 * node_count), fontsize=9)
 
-    save_plot_data('plots/packet_drop_vs_time_scale_factor', data)
+    save_plot_data('plots/packet_drop_vs_time_scale_factor', raw_data)
 
 
 if __name__ == '__main__':

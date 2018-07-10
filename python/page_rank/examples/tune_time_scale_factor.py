@@ -7,35 +7,66 @@ from page_rank.model.tools.utils import getLogger, FailedOnWarningError, \
 
 N_ITER = 25
 RUN_TIME = N_ITER * .1  # multiplied by time step in ms
+LOG_LEVEL = 20  # LOG_IMPORTANT
+MAX_ITER = 15
 
 _logger = getLogger()
 
 
-def sim_worker(edges=None, labels=None, verify=None, pause=None,
-               tsf_min=None, tsf_res=None, tsf_max=None):
+def _run(tsf, edges, labels, pause, verify):
     from page_rank.model.tools.simulation import PageRankSimulation
-    tsf = None
 
-    while abs(tsf_max - tsf_min) > tsf_res:
+    # Run simulation / report
+    _logger.important('|> Running w/ time_scale_factor=%d\n' % tsf)
+    params = dict(time_scale_factor=tsf)
+    with PageRankSimulation(
+            RUN_TIME, edges, labels, params, fail_on_warning=True,
+            pause=pause, log_level=LOG_LEVEL) as s:
+        s.run(verify=verify, diff_only=True)
+
+
+def _find_tsf_range(tsf_min_in, *run_args):
+    tsf_min = tsf_min_in
+    tsf_max = tsf_min_in
+
+    for i in range(MAX_ITER):
+        tsf_max = tsf_min_in + (2 ** i) * 100
+        _logger.important('Check tsf_max=%d\n' % tsf_max)
         try:
-            tsf = tsf_min + (tsf_max - tsf_min) // 2
+            _run(tsf_max, *run_args)
+            return tsf_min, tsf_max
+        # Raised warnings, update lower bound tsf_min on execution time
+        except FailedOnWarningError:
+            tsf_min = tsf_max
 
-            # Run simulation / report
-            _logger.important('|> Running w/ time_scale_factor=%d\n' % tsf)
-            params = dict(time_scale_factor=tsf)
-            with PageRankSimulation(
-                    RUN_TIME, edges, labels, params, fail_on_warning=True,
-                    pause=pause, log_level=20) as s:
-                s.run(verify=verify, diff_only=True)
+    raise RuntimeError('Could not find tsf_max in range ({},{}). Consider '
+                       'increasing max_iter.'.format(tsf_min, tsf_max))
 
-            # No error, reduce tsf
+
+def _find_tsf(tsf_min, tsf_res, tsf_max, *run_args):
+    while abs(tsf_max - tsf_min) > tsf_res:
+        tsf = tsf_min + (tsf_max - tsf_min) // 2
+        try:
+            _run(tsf, *run_args)
+            # No error, reduce upper bound
             tsf_max = tsf
         except FailedOnWarningError:
-            # No error, increase tsf
+            # Error, increase lower bound
             tsf_min = tsf
 
     _logger.important('==> RESULT: time_scale_factor=%d\n' % tsf_max)
     return tsf_max
+
+
+def sim_worker(edges=None, labels=None, verify=None, pause=None,
+               tsf_min=None, tsf_res=None, tsf_max=None):
+    run_args = (edges, labels, pause, verify)
+
+    if tsf_max is None:
+        tsf_min, tsf_max = _find_tsf_range(tsf_min, *run_args)
+        _logger.important('Found range (%d,%d)\n' % (tsf_min, tsf_max))
+
+    return _find_tsf(tsf_min, tsf_res, tsf_max, *run_args)
 
 
 if __name__ == '__main__':

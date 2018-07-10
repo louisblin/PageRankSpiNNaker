@@ -14,5 +14,5 @@ echo "Running tests on ${IMAGE_PROD}..."
 "${PROJECT_ROOT}/scripts/start_container" \
     "${IMAGE_PROD}" \
     --volume "${PROJECT_ROOT}/python:/app/w" \
-    --no-pull \
+    --no-pull --rm \
     --exec "python -m unittest discover -s page_rank.tests"

@@ -49,7 +49,8 @@ def _mk_edges(node_count, edge_count):
 def mk_path(path):
     path = os.path.realpath(os.path.join(os.path.dirname(__file__), path))
 
-    if fnmatch.fnmatch(path, '*.*'):
+    # If path is a file, not necessarily existing
+    if '.' in path.split('/')[-1]:
         dir_path = os.path.dirname(path)
     else:
         dir_path = path

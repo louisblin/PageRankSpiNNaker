@@ -37,8 +37,15 @@ def run(node_count=None, cores=None, show_out=None):
 def do_plot(cores, tsfs, node_count):
     import matplotlib.pyplot as plt
 
+    # Need a 2D matrix to save as csv - copy node_count
+    if hasattr(node_count, '__len__'):
+        node_count_row = node_count
+        node_count = node_count[0]
+    else:
+        node_count_row = [node_count] * len(cores)
+    raw_data = np.array([cores, tsfs, node_count_row])
+
     # Normalise data
-    raw_data = np.array([cores, tsfs])
     tsfs = np.array(tsfs) / float(tsfs[0]) * 100
     print('\n=== DATA [cores, tsfs] ===\n{}'.format(np.array([cores, tsfs])))
 
@@ -49,8 +56,8 @@ def do_plot(cores, tsfs, node_count):
     plt.xlabel('Cores')
     plt.ylabel('Run time (in arbitrary unit)')
     # plt.suptitle("Tuning number of Page Rank vertices managed by a single core")
-    plt.title(("Mapping a fixed-size graph (|V|={}, |E|={}) onto a \nvarying "
-               "number of cores. 15 cores / chip").format(
+    plt.title(("Mapping a fixed-size graph (|V|={}, |E|={}) onto a \n"
+               "varying number of cores. 15 cores / chip").format(
         node_count, 10 * node_count), fontsize=9)
 
     save_plot_data('plots/atoms_per_core_vs_running_time', raw_data)
