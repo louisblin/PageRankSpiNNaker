@@ -44,7 +44,17 @@ def _find_tsf_range(tsf_min_in, *run_args):
 
 
 def _find_tsf(tsf_min, tsf_res, tsf_max, *run_args):
-    while abs(tsf_max - tsf_min) > tsf_res:
+    # If resolution expressed as a percentage relative to tsf
+    # Example: if we return tsf=50 w/ tsf_res=.1, it means the true value of tsf
+    #          is in the range [45-50]
+    if tsf_res < 1:
+        condition = lambda t, tsf_diff: tsf_diff > t * tsf_res
+    # Otherwise, resolution expressed as absolute difference
+    else:
+        condition = lambda t, tsf_diff: tsf_diff > tsf_res
+
+    tsf = 0
+    while condition(tsf, abs(tsf_max - tsf_min)):
         tsf = tsf_min + (tsf_max - tsf_min) // 2
         try:
             _run(tsf, *run_args)

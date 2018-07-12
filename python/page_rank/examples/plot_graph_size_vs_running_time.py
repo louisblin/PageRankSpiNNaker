@@ -1,5 +1,6 @@
 import argparse
 import random
+import sys
 import time
 
 import numpy as np
@@ -11,7 +12,7 @@ from page_rank.model.tools.utils import graph_visualiser, LOG_IMPORTANT, \
 N_ITER = 25
 RUN_TIME = N_ITER * .1  # multiplied by time step in ms
 TSF_MIN = 20
-TSF_RES = 10
+TSF_RES = .1  # % of tsf.
 
 _logger = getLogger()
 
@@ -25,6 +26,7 @@ def _sim_worker(edges=None, labels=None, skip_python=False, **tsf_kwargs):
 
     # Skip python run (takes too long on large graphs)
     if skip_python:
+        _logger.warning('Skipping Python run')
         return tsf, pyt
 
     # Compute python Page Rank running time
@@ -132,7 +134,7 @@ if __name__ == '__main__':
         description='Plots graph size vs. Python / SpiNNaker running times.')
     parser.add_argument('cores', nargs='+', type=int)
     parser.add_argument('-s', '--skip-python-from', type=int,
-                        help='Core value to skip python from')
+                        default=sys.maxsize, help='# Core to skip python from')
     parser.add_argument('-o', '--show-out', action='store_true')
 
     # Recreate the same graphs for the same arguments
