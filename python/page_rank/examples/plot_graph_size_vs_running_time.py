@@ -45,7 +45,7 @@ def _sim_worker(edges=None, labels=None, skip_python=False, **tsf_kwargs):
     return tsf, pyt
 
 
-def run(cores=None, show_out=None, skip_python_from=None):
+def run(cores=None, edges_scale=None, show_out=None, skip_python_from=None):
     import tqdm
 
     n_sizes = []
@@ -55,7 +55,7 @@ def run(cores=None, show_out=None, skip_python_from=None):
 
     for n_core in tqdm.tqdm(cores):
         node_count = 255 * n_core
-        edge_count = 10 * node_count
+        edge_count = edges_scale * node_count
         skip_python = n_core >= skip_python_from
 
         tsf, pyt = runner(
@@ -93,21 +93,25 @@ def do_plot(n_sizes, tsfs, pyts):
         idx = np.where(pyts == 0)[0][0]
         valid_n_sizes, valid_pyts = n_sizes[:idx], pyts[:idx]
 
-        plt.loglog(valid_n_sizes, valid_pyts, 'r-', basex=2, basey=2,
+        # If we have any Python values to plot
+        if len(valid_pyts) > 0:
+            plt.loglog(valid_n_sizes, valid_pyts, 'r-', basex=2, basey=2,
                    label="Python running time")
 
-        # For missing values, add a trend line
-        z = np.polyfit(valid_n_sizes, valid_pyts, 1)
-        p = np.poly1d(z)
-        n_sizes_proj, pyts_proj = n_sizes[idx - 1:], p(n_sizes)[idx - 1:]
-        plt.loglog(n_sizes_proj, pyts_proj, 'r--', basex=2, basey=2,
-                   label="Linear fitting projection")
+            # For missing values, add a trend line
+            z = np.polyfit(valid_n_sizes, valid_pyts, 1)
+            p = np.poly1d(z)
+            n_sizes_proj, pyts_proj = n_sizes[idx - 1:], p(n_sizes)[idx - 1:]
+            plt.loglog(n_sizes_proj, pyts_proj, 'r--', basex=2, basey=2,
+                       label="Linear fitting projection")
+            speedup = (p(n_sizes) / tsfs).mean()
+        else:
+            speedup = 0
 
         # SpiNNaker run time
         plt.loglog(n_sizes, tsfs, 'b-', basex=2, basey=2,
                    label="SpiNNaker running time")
 
-        speedup = (p(n_sizes) / tsfs).mean()
         plt.grid(True)
     # Otherwise, use a normal graph
     else:
@@ -133,6 +137,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Plots graph size vs. Python / SpiNNaker running times.')
     parser.add_argument('cores', nargs='+', type=int)
+    parser.add_argument('--edges-scale', type=int, default=10,
+                        help='(# edges / # nodes) ratio. Default is 10.')
     parser.add_argument('-s', '--skip-python-from', type=int,
                         default=sys.maxsize, help='# Core to skip python from')
     parser.add_argument('-o', '--show-out', action='store_true')
