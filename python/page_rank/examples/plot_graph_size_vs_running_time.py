@@ -95,30 +95,35 @@ def do_plot(n_sizes, tsfs, pyts):
 
         # If we have any Python values to plot
         if len(valid_pyts) > 0:
-            plt.loglog(valid_n_sizes, valid_pyts, 'r-', basex=2, basey=2,
-                   label="Python running time")
+            plt.loglog(valid_n_sizes, valid_pyts, '-rx', basex=2, basey=2,
+                   label="Regular multicore running time")
 
             # For missing values, add a trend line
             z = np.polyfit(valid_n_sizes, valid_pyts, 1)
             p = np.poly1d(z)
             n_sizes_proj, pyts_proj = n_sizes[idx - 1:], p(n_sizes)[idx - 1:]
-            plt.loglog(n_sizes_proj, pyts_proj, 'r--', basex=2, basey=2,
+            plt.loglog(n_sizes_proj, pyts_proj, '--rx', basex=2, basey=2,
                        label="Linear fitting projection")
             speedup = (p(n_sizes) / tsfs).mean()
         else:
             speedup = 0
 
         # SpiNNaker run time
-        plt.loglog(n_sizes, tsfs, 'b-', basex=2, basey=2,
+        plt.loglog(n_sizes, tsfs, '-bx', basex=2, basey=2,
                    label="SpiNNaker running time")
 
         plt.grid(True)
     # Otherwise, use a normal graph
     else:
-        plt.plot(n_sizes, pyts, 'r-', label="Python running time")
-        plt.plot(n_sizes, tsfs, 'b-', label="SpiNNaker running time")
-
         speedup = (pyts / tsfs).mean()
+
+        if speedup > 5:
+            plt.grid(True)
+            plt.semilogy(n_sizes, pyts, '-rx', label="Regular multicore running time")
+            plt.semilogy(n_sizes, tsfs, '-bx', label="SpiNNaker running time")
+        else:
+            plt.plot(n_sizes, pyts, '-rx', label="Regular multicore running time")
+            plt.plot(n_sizes, tsfs, '-bx', label="SpiNNaker running time")
 
     plt.legend()
     plt.xticks()
