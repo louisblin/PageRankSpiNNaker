@@ -12,7 +12,7 @@ idna==2.6
 jsonschema==2.6.0
 kiwisolver==1.0.1
 lazyarray==0.2.9
-lxml==4.2.1
+lxml==4.9.1
 matplotlib==2.2.2
 neo==0.4.1
 numpy==1.14.2
