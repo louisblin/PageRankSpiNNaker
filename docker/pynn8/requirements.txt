@@ -23,7 +23,7 @@ pytz==2018.4
 quantities==0.12.1
 requests==2.18.4
 rig==2.4.0
-scipy==1.0.1
+scipy==1.10.0
 sentinel==0.1.1
 six==1.11.0
 spalloc==1.0.0
