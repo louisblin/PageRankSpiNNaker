@@ -38,6 +38,6 @@ sPyNNaker==1!4.0.0
 sPyNNaker8==1!4.0.0
 subprocess32==3.2.7
 tzlocal==1.5.1
-urllib3==1.22
+urllib3==1.26.5
 virtualenv==15.2.0
 webencodings==0.5.1
